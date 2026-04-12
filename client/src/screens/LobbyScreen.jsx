@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import socket from '../socket';
 import { QRCodeSVG } from 'qrcode.react';
+import SettingsPanel from '../components/SettingsPanel';
 
 export default function LobbyScreen() {
   const { state } = useGame();
-  const { gameCode, players, isManager, myId, rooms } = state;
+  const { gameCode, players, isManager, myId, rooms, settings } = state;
   const [copied, setCopied] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const activePlayers = players.filter(p => !p.disconnected);
   const canStart = activePlayers.length >= 3;
@@ -54,6 +56,13 @@ export default function LobbyScreen() {
             />
           </div>
         )}
+
+        <button
+          className="btn btn-ghost btn-small lobby-settings-btn"
+          onClick={() => setShowSettings(true)}
+        >
+          ⚙ {isManager ? 'Edit Settings' : 'View Settings'}
+        </button>
       </div>
 
       <div className="lobby-rooms card">
@@ -103,6 +112,16 @@ export default function LobbyScreen() {
         <div className="lobby-footer">
           <p className="waiting-text">Waiting for the host to start…</p>
         </div>
+      )}
+
+      {showSettings && (
+        <SettingsPanel
+          isManager={isManager}
+          settings={settings}
+          rooms={rooms}
+          gameCode={gameCode}
+          onClose={() => setShowSettings(false)}
+        />
       )}
     </div>
   );

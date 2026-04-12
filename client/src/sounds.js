@@ -1,4 +1,6 @@
 // Sound effects generated via Web Audio API — no external files needed.
+// Exports: playEmergencyAlarm, playRoleSuspense, playVoteResults, playGameEnd,
+//          playRoomLock, playGlobalLockdownAlarm
 
 let _ctx = null;
 
@@ -198,5 +200,70 @@ export function playGameEnd(crewmatesWin) {
       drone.start(now + 1.1);
       drone.stop(now + 3.6);
     }
+  } catch (_) {}
+}
+
+// 5. Room lock — heavy mechanical clunk (low thud + click)
+export function playRoomLock() {
+  try {
+    const ac = ctx();
+    const now = ac.currentTime;
+
+    // Low sine thud: 80 → 30 Hz, fast attack, exponential decay
+    const thud = ac.createOscillator();
+    const tg = ac.createGain();
+    thud.type = 'sine';
+    thud.frequency.setValueAtTime(80, now);
+    thud.frequency.exponentialRampToValueAtTime(30, now + 0.4);
+    tg.gain.setValueAtTime(0, now);
+    tg.gain.linearRampToValueAtTime(0.7, now + 0.02);
+    tg.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    thud.connect(tg);
+    tg.connect(ac.destination);
+    thud.start(now);
+    thud.stop(now + 0.55);
+
+    // Short metallic click overtone
+    const click = ac.createOscillator();
+    const cg = ac.createGain();
+    click.type = 'square';
+    click.frequency.setValueAtTime(400, now);
+    cg.gain.setValueAtTime(0.15, now);
+    cg.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    click.connect(cg);
+    cg.connect(ac.destination);
+    click.start(now);
+    click.stop(now + 0.1);
+  } catch (_) {}
+}
+
+// 6. Global lockdown alarm — rapid urgent sawtooth klaxon (12 pulses, ~2.2 s)
+export function playGlobalLockdownAlarm() {
+  try {
+    const ac = ctx();
+    const now = ac.currentTime;
+
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'sawtooth';
+
+    // Alternate 1200 / 600 Hz every 0.18 s (12 pulses)
+    const pattern = [1200, 600, 1200, 600, 1200, 600, 1200, 600, 1200, 600, 1200, 600];
+    pattern.forEach((f, i) => {
+      osc.frequency.setValueAtTime(f, now + i * 0.18);
+    });
+
+    gain.gain.setValueAtTime(0, now);
+    for (let i = 0; i < 12; i++) {
+      const t = now + i * 0.18;
+      gain.gain.setValueAtTime(0.55, t);
+      gain.gain.setValueAtTime(0.55, t + 0.13);
+      gain.gain.linearRampToValueAtTime(0, t + 0.17);
+    }
+
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.start(now);
+    osc.stop(now + 12 * 0.18 + 0.1);
   } catch (_) {}
 }

@@ -1,7 +1,33 @@
 import { createContext, useContext, useReducer, useEffect } from 'react';
 import socket from '../socket';
+import { playRoomLock, playGlobalLockdownAlarm } from '../sounds';
 
 const GameContext = createContext(null);
+
+const defaultSettings = {
+  killCooldown: 20000,
+  startKillCooldown: 20000,
+  taskHoldDuration: 20000,
+  deadTaskHoldDuration: 10000,
+  sabotageEnabled: false,
+  roomLockingEnabled: true,
+  maxLockedRooms: 2,
+  roomLockDuration: 20000,
+  roomLockCooldown: 60000,
+  globalLockdownEnabled: true,
+  globalLockdownDuration: 30000,
+  globalLockdownCooldown: 120000,
+  maxGlobalLockdowns: 2,
+};
+
+const defaultSabotage = {
+  lockedRooms: [],               // [{ roomName, expiresAt }]
+  roomLockCooldowns: {},         // { roomName: cooldownUntil } — imposter only
+  globalLockdownActive: false,
+  globalLockdownExpiresAt: null,
+  globalLockdownCooldownUntil: 0,
+  globalLockdownUsesLeft: 2,
+};
 
 const initialState = {
   gameCode: null,
@@ -26,6 +52,9 @@ const initialState = {
   ejectedPlayer: null,   // { id, name, wasImposter }
   lastMeeting: null,     // { reason, reporterName, bodyName }
   error: null,
+  settings: { ...defaultSettings },
+  sabotage: { ...defaultSabotage },
+  pendingLockNotification: null, // { type: 'room'|'global', roomName?, expiresAt }
 };
 
 function reducer(state, action) {
@@ -46,8 +75,15 @@ function reducer(state, action) {
         phase: 'lobby',
         players: action.players,
         rooms: action.rooms,
+        settings: action.settings ?? state.settings,
         isManager: action.isManager,
       };
+
+    case 'SETTINGS_UPDATED':
+      return { ...state, settings: action.settings };
+
+    case 'ROOMS_UPDATED':
+      return { ...state, rooms: action.rooms };
 
     case 'PLAYER_JOINED':
       return {
@@ -126,6 +162,9 @@ function reducer(state, action) {
         totalVotesIn: 0,
         ejectedPlayer: null,
         lastMeeting: { reason: action.reason, reporterName: action.reporterName, bodyName: action.bodyName },
+        // Clear lockdown UI when a meeting starts (lockdown ends server-side too)
+        sabotage: { ...state.sabotage, globalLockdownActive: false, globalLockdownExpiresAt: null },
+        pendingLockNotification: null,
       };
 
     case 'SHOW_VOTING':
@@ -172,16 +211,34 @@ function reducer(state, action) {
         phase: 'lobby',
         players: action.players,
         rooms: action.rooms,
+        settings: action.settings ?? state.settings,
         isManager: state.isManager,
         myName: state.myName,
       };
 
-    case 'GAME_STATE_RESTORED':
+    case 'GAME_STATE_RESTORED': {
+      const restoredSabotage = action.sabotage
+        ? {
+            lockedRooms: action.sabotage.lockedRooms ?? [],
+            roomLockCooldowns: action.sabotage.roomLockCooldowns ?? {},
+            globalLockdownActive: action.sabotage.globalLockdown?.active ?? false,
+            globalLockdownExpiresAt: action.sabotage.globalLockdown?.expiresAt ?? null,
+            globalLockdownCooldownUntil: action.sabotage.globalLockdown?.cooldownUntil ?? 0,
+            globalLockdownUsesLeft: action.sabotage.globalLockdown?.usesLeft ?? state.settings.maxGlobalLockdowns,
+          }
+        : state.sabotage;
+
+      // If reconnecting during an active lockdown, show the notification (no alarm replay)
+      const restoredNotification = restoredSabotage.globalLockdownActive
+        ? { type: 'global', expiresAt: restoredSabotage.globalLockdownExpiresAt }
+        : null;
+
       return {
         ...state,
         phase: action.phase,
         players: action.players,
         rooms: action.rooms,
+        settings: action.settings ?? state.settings,
         myRole: action.role,
         myTasks: action.myTasks,
         isAlive: action.isAlive,
@@ -189,7 +246,10 @@ function reducer(state, action) {
         killCooldownUntil: action.killCooldownUntil || 0,
         hasCalledEmergency: action.hasCalledEmergency || false,
         isManager: action.isManager,
+        sabotage: restoredSabotage,
+        pendingLockNotification: restoredNotification,
       };
+    }
 
     case 'KILL_COOLDOWN_STARTED':
       return { ...state, killCooldownUntil: action.cooldownUntil };
@@ -224,6 +284,62 @@ function reducer(state, action) {
           !p.isAlive ? { ...p, bodyFound: true } : p
         ),
       };
+
+    // ─── SABOTAGE ───────────────────────────────────────────────────────────
+
+    case 'ROOM_LOCKED':
+      return {
+        ...state,
+        sabotage: { ...state.sabotage, lockedRooms: action.lockedRooms },
+        // Only show notification to non-imposters (imposter triggered it)
+        pendingLockNotification: state.myRole !== 'imposter'
+          ? { type: 'room', roomName: action.roomName, expiresAt: action.expiresAt }
+          : state.pendingLockNotification,
+      };
+
+    case 'ROOM_UNLOCKED':
+      return {
+        ...state,
+        sabotage: { ...state.sabotage, lockedRooms: action.lockedRooms },
+      };
+
+    case 'GLOBAL_LOCKDOWN_STARTED':
+      return {
+        ...state,
+        sabotage: {
+          ...state.sabotage,
+          globalLockdownActive: true,
+          globalLockdownExpiresAt: action.expiresAt,
+        },
+        pendingLockNotification: { type: 'global', expiresAt: action.expiresAt },
+      };
+
+    case 'GLOBAL_LOCKDOWN_ENDED':
+      return {
+        ...state,
+        sabotage: {
+          ...state.sabotage,
+          globalLockdownActive: false,
+          globalLockdownExpiresAt: null,
+        },
+        pendingLockNotification: null,
+      };
+
+    case 'SABOTAGE_STATUS':
+      return {
+        ...state,
+        sabotage: {
+          lockedRooms: action.lockedRooms ?? [],
+          roomLockCooldowns: action.roomLockCooldowns ?? {},
+          globalLockdownActive: action.globalLockdown?.active ?? false,
+          globalLockdownExpiresAt: action.globalLockdown?.expiresAt ?? null,
+          globalLockdownCooldownUntil: action.globalLockdown?.cooldownUntil ?? 0,
+          globalLockdownUsesLeft: action.globalLockdown?.usesLeft ?? 0,
+        },
+      };
+
+    case 'DISMISS_LOCK_NOTIFICATION':
+      return { ...state, pendingLockNotification: null };
 
     default:
       return state;
@@ -324,6 +440,35 @@ export function GameProvider({ children }) {
       dispatch({ type: 'GAME_STATE_RESTORED', ...data });
     });
 
+    socket.on('settings_updated', ({ settings }) => {
+      dispatch({ type: 'SETTINGS_UPDATED', settings });
+    });
+
+    socket.on('rooms_updated', ({ rooms }) => {
+      dispatch({ type: 'ROOMS_UPDATED', rooms });
+    });
+
+    socket.on('room_locked', data => {
+      dispatch({ type: 'ROOM_LOCKED', ...data });
+    });
+
+    socket.on('room_unlocked', data => {
+      dispatch({ type: 'ROOM_UNLOCKED', ...data });
+    });
+
+    socket.on('global_lockdown_started', ({ expiresAt }) => {
+      dispatch({ type: 'GLOBAL_LOCKDOWN_STARTED', expiresAt });
+      playGlobalLockdownAlarm();
+    });
+
+    socket.on('global_lockdown_ended', () => {
+      dispatch({ type: 'GLOBAL_LOCKDOWN_ENDED' });
+    });
+
+    socket.on('sabotage_status', data => {
+      dispatch({ type: 'SABOTAGE_STATUS', ...data });
+    });
+
     socket.on('error', ({ message }) => {
       dispatch({ type: 'SET_ERROR', message });
       setTimeout(() => dispatch({ type: 'CLEAR_ERROR' }), 4000);
@@ -352,6 +497,13 @@ export function GameProvider({ children }) {
       socket.off('game_over');
       socket.off('game_reset');
       socket.off('game_state_restored');
+      socket.off('settings_updated');
+      socket.off('rooms_updated');
+      socket.off('room_locked');
+      socket.off('room_unlocked');
+      socket.off('global_lockdown_started');
+      socket.off('global_lockdown_ended');
+      socket.off('sabotage_status');
       socket.off('error');
     };
   }, []);

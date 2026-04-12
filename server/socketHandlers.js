@@ -118,6 +118,16 @@ function registerHandlers(io, socket) {
     if (game.phase === 'lobby') {
       socket.emit('game_joined', base);
     } else {
+      const sabotageForPlayer = player.role === 'imposter'
+        ? buildSabotageStatus(game)
+        : {
+            lockedRooms: buildLockedRoomsList(game),
+            globalLockdown: {
+              active: game.sabotage.globalLockdownActive,
+              expiresAt: game.sabotage.globalLockdownExpiresAt,
+            },
+          };
+
       socket.emit('game_state_restored', {
         ...base,
         role: player.role,
@@ -125,6 +135,7 @@ function registerHandlers(io, socket) {
         isAlive: player.isAlive,
         killCooldownUntil: player.role === 'imposter' ? game.imposterKillCooldownUntil : 0,
         hasCalledEmergency: player.hasCalledEmergency,
+        sabotage: sabotageForPlayer,
       });
     }
 
@@ -149,6 +160,83 @@ function registerHandlers(io, socket) {
     io.to(code).emit('player_kicked', { playerId: targetId });
     // Also tell the kicked socket directly in case they're no longer in the room
     io.to(targetId).emit('player_kicked', { playerId: targetId });
+  });
+
+  socket.on('update_settings', ({ code, settings } = {}) => {
+    const game = getGame(code);
+    if (!game) return socket.emit('error', { message: 'Game not found.' });
+    if (game.phase !== 'lobby') return socket.emit('error', { message: 'Settings can only be changed in the lobby.' });
+    if (socket.id !== game.managerId) return socket.emit('error', { message: 'Only the manager can change settings.' });
+    if (!settings || typeof settings !== 'object') return socket.emit('error', { message: 'Invalid settings.' });
+
+    const validated = {};
+
+    const clampInt = (val, min, max) => {
+      const n = parseInt(val, 10);
+      return !isNaN(n) ? Math.min(max, Math.max(min, n)) : null;
+    };
+
+    // Timing (stored in ms; client sends seconds * 1000)
+    const kc = clampInt(settings.killCooldown, 5000, 120000);
+    if (kc !== null) validated.killCooldown = kc;
+
+    const skc = clampInt(settings.startKillCooldown, 0, 120000);
+    if (skc !== null) validated.startKillCooldown = skc;
+
+    const thd = clampInt(settings.taskHoldDuration, 5000, 60000);
+    if (thd !== null) validated.taskHoldDuration = thd;
+
+    const dthd = clampInt(settings.deadTaskHoldDuration, 5000, 60000);
+    if (dthd !== null) validated.deadTaskHoldDuration = dthd;
+
+    // Sabotage booleans
+    if (typeof settings.sabotageEnabled === 'boolean') validated.sabotageEnabled = settings.sabotageEnabled;
+    if (typeof settings.roomLockingEnabled === 'boolean') validated.roomLockingEnabled = settings.roomLockingEnabled;
+    if (typeof settings.globalLockdownEnabled === 'boolean') validated.globalLockdownEnabled = settings.globalLockdownEnabled;
+
+    // Sabotage numerics
+    const mlr = clampInt(settings.maxLockedRooms, 1, 5);
+    if (mlr !== null) validated.maxLockedRooms = mlr;
+
+    const rld = clampInt(settings.roomLockDuration, 5000, 120000);
+    if (rld !== null) validated.roomLockDuration = rld;
+
+    const rlc = clampInt(settings.roomLockCooldown, 10000, 300000);
+    if (rlc !== null) validated.roomLockCooldown = rlc;
+
+    const gld = clampInt(settings.globalLockdownDuration, 10000, 120000);
+    if (gld !== null) validated.globalLockdownDuration = gld;
+
+    const glc = clampInt(settings.globalLockdownCooldown, 30000, 600000);
+    if (glc !== null) validated.globalLockdownCooldown = glc;
+
+    const mgl = clampInt(settings.maxGlobalLockdowns, 1, 5);
+    if (mgl !== null) validated.maxGlobalLockdowns = mgl;
+
+    Object.assign(game.settings, validated);
+    io.to(code).emit('settings_updated', { settings: game.settings });
+  });
+
+  socket.on('update_rooms', ({ code, rooms } = {}) => {
+    const game = getGame(code);
+    if (!game) return socket.emit('error', { message: 'Game not found.' });
+    if (game.phase !== 'lobby') return socket.emit('error', { message: 'Rooms can only be changed in the lobby.' });
+    if (socket.id !== game.managerId) return socket.emit('error', { message: 'Only the manager can change rooms.' });
+    if (!Array.isArray(rooms)) return socket.emit('error', { message: 'Invalid rooms.' });
+
+    const trimmed = rooms.map(r => (typeof r === 'string' ? r.trim() : '')).filter(r => r.length > 0 && r.length <= 30);
+    if (trimmed.length < 2 || trimmed.length > 10) {
+      return socket.emit('error', { message: 'Need between 2 and 10 rooms.' });
+    }
+
+    // Check for duplicates (case-insensitive)
+    const lower = trimmed.map(r => r.toLowerCase());
+    if (new Set(lower).size !== lower.length) {
+      return socket.emit('error', { message: 'Room names must be unique.' });
+    }
+
+    game.rooms = trimmed;
+    io.to(code).emit('rooms_updated', { rooms: game.rooms });
   });
 
   socket.on('start_game', ({ code } = {}) => {
@@ -305,6 +393,87 @@ function registerHandlers(io, socket) {
     if (result) endGame(io, game, result);
   });
 
+  // ─── SABOTAGE ─────────────────────────────────────────────────────────────
+
+  socket.on('lock_room', ({ code, roomName } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return socket.emit('error', { message: 'Cannot sabotage now.' });
+
+    const imposter = game.players.get(socket.id);
+    if (!imposter || imposter.role !== 'imposter' || !imposter.isAlive) {
+      return socket.emit('error', { message: 'Not allowed.' });
+    }
+    if (!game.settings.sabotageEnabled) return socket.emit('error', { message: 'Sabotage is disabled.' });
+    if (!game.settings.roomLockingEnabled) return socket.emit('error', { message: 'Room locking is disabled.' });
+    if (!game.rooms.includes(roomName)) return socket.emit('error', { message: 'Invalid room.' });
+    if (game.sabotage.lockedRooms.has(roomName)) return socket.emit('error', { message: 'Room already locked.' });
+    if (game.sabotage.lockedRooms.size >= game.settings.maxLockedRooms) {
+      return socket.emit('error', { message: 'Maximum rooms locked.' });
+    }
+    const cooldownUntil = game.sabotage.roomLockCooldowns.get(roomName) ?? 0;
+    if (Date.now() < cooldownUntil) return socket.emit('error', { message: 'Room on cooldown.' });
+
+    const now = Date.now();
+    const expiresAt = now + game.settings.roomLockDuration;
+    const timeoutId = setTimeout(() => {
+      const g = getGame(code);
+      if (g) unlockRoom(io, g, roomName);
+    }, game.settings.roomLockDuration);
+
+    game.sabotage.lockedRooms.set(roomName, { expiresAt, timeoutId });
+    game.sabotage.roomLockCooldowns.set(roomName, now + game.settings.roomLockCooldown);
+
+    io.to(code).emit('room_locked', {
+      roomName,
+      expiresAt,
+      lockedRooms: buildLockedRoomsList(game),
+    });
+
+    // Send full sabotage status back to imposter
+    socket.emit('sabotage_status', buildSabotageStatus(game));
+  });
+
+  socket.on('trigger_global_lockdown', ({ code } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return socket.emit('error', { message: 'Cannot sabotage now.' });
+
+    const imposter = game.players.get(socket.id);
+    if (!imposter || imposter.role !== 'imposter' || !imposter.isAlive) {
+      return socket.emit('error', { message: 'Not allowed.' });
+    }
+    if (!game.settings.sabotageEnabled) return socket.emit('error', { message: 'Sabotage is disabled.' });
+    if (!game.settings.globalLockdownEnabled) return socket.emit('error', { message: 'Global lockdown is disabled.' });
+    if (game.sabotage.globalLockdownActive) return socket.emit('error', { message: 'Lockdown already active.' });
+    if (Date.now() < game.sabotage.globalLockdownCooldownUntil) {
+      return socket.emit('error', { message: 'Global lockdown on cooldown.' });
+    }
+    if (game.sabotage.globalLockdownUsesLeft <= 0) {
+      return socket.emit('error', { message: 'No global lockdown uses remaining.' });
+    }
+
+    const now = Date.now();
+    const expiresAt = now + game.settings.globalLockdownDuration;
+
+    game.sabotage.globalLockdownActive = true;
+    game.sabotage.globalLockdownExpiresAt = expiresAt;
+    game.sabotage.globalLockdownUsesLeft -= 1;
+    game.sabotage.globalLockdownCooldownUntil = now + game.settings.globalLockdownCooldown;
+    game.sabotage.globalLockdownTimeoutId = setTimeout(() => {
+      const g = getGame(code);
+      if (g) endGlobalLockdown(io, g);
+    }, game.settings.globalLockdownDuration);
+
+    // Notify all non-imposter players
+    for (const [id, p] of game.players) {
+      if (p.role !== 'imposter') {
+        io.to(id).emit('global_lockdown_started', { expiresAt });
+      }
+    }
+
+    // Send full sabotage status back to imposter
+    socket.emit('sabotage_status', buildSabotageStatus(game));
+  });
+
   // ─── MEETINGS ─────────────────────────────────────────────────────────────
 
   socket.on('report_body', ({ code, bodyId } = {}) => {
@@ -327,6 +496,11 @@ function registerHandlers(io, socket) {
 
     const caller = game.players.get(socket.id);
     if (!caller || !caller.isAlive) return socket.emit('error', { message: 'Not allowed.' });
+
+    // Block emergency meetings during a global lockdown
+    if (game.sabotage.globalLockdownActive) {
+      return socket.emit('error', { message: 'Cannot call a meeting during a lockdown.' });
+    }
 
     game.meetingHasOccurred = true;
 
@@ -383,6 +557,14 @@ function registerHandlers(io, socket) {
     // Reset game back to lobby, keeping same players and rooms
     if (game.votingTimeout) clearTimeout(game.votingTimeout);
 
+    // Clear any active sabotage timeouts
+    for (const { timeoutId } of game.sabotage.lockedRooms.values()) {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+    if (game.sabotage.globalLockdownTimeoutId) {
+      clearTimeout(game.sabotage.globalLockdownTimeoutId);
+    }
+
     game.phase = 'lobby';
     game.tasks = new Map();
     game.taskHoldStartTimes = new Map();
@@ -393,6 +575,15 @@ function registerHandlers(io, socket) {
     game.imposterKillCooldownUntil = 0;
     game.gameStartTime = 0;
     game.meetingHasOccurred = false;
+    game.sabotage = {
+      lockedRooms: new Map(),
+      roomLockCooldowns: new Map(),
+      globalLockdownActive: false,
+      globalLockdownExpiresAt: null,
+      globalLockdownCooldownUntil: 0,
+      globalLockdownUsesLeft: game.settings.maxGlobalLockdowns,
+      globalLockdownTimeoutId: null,
+    };
 
     for (const player of game.players.values()) {
       player.role = null;
@@ -407,6 +598,7 @@ function registerHandlers(io, socket) {
     io.to(code).emit('game_reset', {
       players: buildPublicPlayerList(game.players),
       rooms: game.rooms,
+      settings: game.settings,
     });
   });
 
@@ -453,6 +645,51 @@ function registerHandlers(io, socket) {
       }
     }, 60000);
   });
+}
+
+// ─── SABOTAGE HELPERS ───────────────────────────────────────────────────────
+
+function buildLockedRoomsList(game) {
+  return [...game.sabotage.lockedRooms.entries()].map(([roomName, { expiresAt }]) => ({
+    roomName,
+    expiresAt,
+  }));
+}
+
+function buildSabotageStatus(game) {
+  const roomLockCooldowns = Object.fromEntries(game.sabotage.roomLockCooldowns);
+  return {
+    lockedRooms: buildLockedRoomsList(game),
+    roomLockCooldowns,
+    globalLockdown: {
+      active: game.sabotage.globalLockdownActive,
+      expiresAt: game.sabotage.globalLockdownExpiresAt,
+      cooldownUntil: game.sabotage.globalLockdownCooldownUntil,
+      usesLeft: game.sabotage.globalLockdownUsesLeft,
+    },
+  };
+}
+
+function unlockRoom(io, game, roomName) {
+  const entry = game.sabotage.lockedRooms.get(roomName);
+  if (!entry) return;
+  clearTimeout(entry.timeoutId);
+  game.sabotage.lockedRooms.delete(roomName);
+  io.to(game.code).emit('room_unlocked', {
+    roomName,
+    lockedRooms: buildLockedRoomsList(game),
+  });
+}
+
+function endGlobalLockdown(io, game) {
+  if (!game.sabotage.globalLockdownActive) return;
+  if (game.sabotage.globalLockdownTimeoutId) {
+    clearTimeout(game.sabotage.globalLockdownTimeoutId);
+    game.sabotage.globalLockdownTimeoutId = null;
+  }
+  game.sabotage.globalLockdownActive = false;
+  game.sabotage.globalLockdownExpiresAt = null;
+  io.to(game.code).emit('global_lockdown_ended', {});
 }
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────

@@ -22,11 +22,28 @@ function createGame({ managerId, rooms, settings }) {
     gameStartTime: 0,
     meetingHasOccurred: false,
     settings: {
-      killCooldown: settings?.killCooldown ?? 20000,
-      taskHoldDuration: settings?.taskHoldDuration ?? 20000,
-      deadTaskHoldDuration: 10000,
-      startKillCooldown: 20000,
-      ...settings,
+      killCooldown:           settings?.killCooldown           ?? 20000,
+      taskHoldDuration:       settings?.taskHoldDuration       ?? 20000,
+      deadTaskHoldDuration:   settings?.deadTaskHoldDuration   ?? 10000,
+      startKillCooldown:      settings?.startKillCooldown      ?? 20000,
+      sabotageEnabled:        settings?.sabotageEnabled        ?? false,
+      roomLockingEnabled:     settings?.roomLockingEnabled     ?? true,
+      maxLockedRooms:         settings?.maxLockedRooms         ?? 2,
+      roomLockDuration:       settings?.roomLockDuration       ?? 20000,
+      roomLockCooldown:       settings?.roomLockCooldown       ?? 60000,
+      globalLockdownEnabled:  settings?.globalLockdownEnabled  ?? true,
+      globalLockdownDuration: settings?.globalLockdownDuration ?? 30000,
+      globalLockdownCooldown: settings?.globalLockdownCooldown ?? 120000,
+      maxGlobalLockdowns:     settings?.maxGlobalLockdowns     ?? 2,
+    },
+    sabotage: {
+      lockedRooms: new Map(),         // roomName → { expiresAt, timeoutId }
+      roomLockCooldowns: new Map(),   // roomName → cooldownUntil (ms timestamp)
+      globalLockdownActive: false,
+      globalLockdownExpiresAt: null,
+      globalLockdownCooldownUntil: 0,
+      globalLockdownUsesLeft: settings?.maxGlobalLockdowns ?? 2,
+      globalLockdownTimeoutId: null,
     },
   };
 
@@ -40,7 +57,15 @@ function getGame(code) {
 
 function deleteGame(code) {
   const game = games.get(code);
-  if (game && game.votingTimeout) clearTimeout(game.votingTimeout);
+  if (game) {
+    if (game.votingTimeout) clearTimeout(game.votingTimeout);
+    for (const { timeoutId } of game.sabotage.lockedRooms.values()) {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+    if (game.sabotage.globalLockdownTimeoutId) {
+      clearTimeout(game.sabotage.globalLockdownTimeoutId);
+    }
+  }
   games.delete(code);
 }
 

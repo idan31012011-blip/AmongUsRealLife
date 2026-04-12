@@ -5,15 +5,21 @@ import TaskProgressBar from '../components/TaskProgressBar';
 import TaskList from '../components/TaskList';
 import KillButton from '../components/KillButton';
 import Modal from '../components/Modal';
+import SabotageMenu from '../components/SabotageMenu';
+import LockdownNotification from '../components/LockdownNotification';
 
 export default function GameScreen() {
-  const { state } = useGame();
-  const { myRole, isAlive, players, gameCode, taskProgressPercent, myId, isManager } = state;
+  const { state, dispatch } = useGame();
+  const {
+    myRole, isAlive, players, gameCode, taskProgressPercent, myId, isManager,
+    settings, sabotage, pendingLockNotification, rooms,
+  } = state;
 
   const [showKillMenu, setShowKillMenu] = useState(false);
   const [pendingKillTarget, setPendingKillTarget] = useState(null); // { id, name }
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [disguised, setDisguised] = useState(false); // imposter-only: fake crewmate appearance
+  const [showSabotageMenu, setShowSabotageMenu] = useState(false);
 
   const livingTargets = players.filter(p => p.isAlive && p.id !== myId);
 
@@ -33,6 +39,7 @@ export default function GameScreen() {
   }
 
   function callEmergency() {
+    if (sabotage.globalLockdownActive) return;
     socket.emit('call_emergency', { code: gameCode });
   }
 
@@ -45,6 +52,7 @@ export default function GameScreen() {
   const isImposter = myRole === 'imposter';
   const myPlayer = players.find(p => p.id === myId);
   const isLocked = isDead && !myPlayer?.bodyFound;
+  const lockdownActive = sabotage.globalLockdownActive;
 
   // When disguised, show crewmate colors; real imposter controls still work
   const showAsImposter = isImposter && !disguised;
@@ -93,12 +101,29 @@ export default function GameScreen() {
       {/* Bottom action bar — living players only */}
       {!isDead && (
         <div className={`game-bottombar ${showAsImposter ? 'bar-imposter' : 'bar-crewmate'}`}>
-          <button className="btn-action btn-emergency" onClick={callEmergency}>
-            <span className="btn-action-icon">🚨</span>
-            <span className="btn-action-label">Meeting</span>
+
+          {/* Emergency meeting button — disabled during global lockdown */}
+          <button
+            className={`btn-action btn-emergency ${lockdownActive ? 'btn-locked btn-disabled' : ''}`}
+            onClick={callEmergency}
+            disabled={lockdownActive}
+          >
+            <span className="btn-action-icon">{lockdownActive ? '🔒' : '🚨'}</span>
+            <span className="btn-action-label">{lockdownActive ? 'Locked' : 'Meeting'}</span>
           </button>
 
-          {/* Kill button only visible when not disguised */}
+          {/* Sabotage button — imposter only, when sabotage is enabled */}
+          {isImposter && !disguised && settings.sabotageEnabled && (
+            <button
+              className="btn-action btn-sabotage"
+              onClick={() => setShowSabotageMenu(true)}
+            >
+              <span className="btn-action-icon">⚡</span>
+              <span className="btn-action-label">Sabotage</span>
+            </button>
+          )}
+
+          {/* Kill button — imposter only, not disguised */}
           {isImposter && !disguised && (
             <KillButton
               cooldownUntil={state.killCooldownUntil}
@@ -153,6 +178,23 @@ export default function GameScreen() {
           <button className="btn btn-ghost" onClick={() => setShowEndConfirm(false)}>Cancel</button>
         </Modal>
       )}
+
+      {/* Sabotage menu (imposter only) */}
+      {showSabotageMenu && (
+        <SabotageMenu
+          rooms={rooms}
+          sabotage={sabotage}
+          settings={settings}
+          gameCode={gameCode}
+          onClose={() => setShowSabotageMenu(false)}
+        />
+      )}
+
+      {/* Lockdown / room lock notification (all non-imposter players) */}
+      <LockdownNotification
+        notification={pendingLockNotification}
+        onDismiss={() => dispatch({ type: 'DISMISS_LOCK_NOTIFICATION' })}
+      />
     </div>
   );
 }

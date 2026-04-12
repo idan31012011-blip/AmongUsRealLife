@@ -1780,3 +1780,341 @@ input {
   margin-top: var(--space-md);
   width: 100%;
 }
+
+/* ── Utility ─────────────────────────────────────────────────────────────── */
+.btn-block {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ── Lobby Settings Button ───────────────────────────────────────────────── */
+.lobby-settings-btn {
+  margin-top: var(--space-sm);
+  align-self: center;
+  width: 100%;
+  max-width: 280px;
+}
+
+/* ── Settings Panel ──────────────────────────────────────────────────────── */
+.settings-panel {
+  padding-bottom: var(--space-md);
+}
+
+.settings-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--color-text-dim);
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-subsection-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-sm);
+  margin-bottom: var(--space-xs);
+  padding-left: var(--space-sm);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(42, 42, 74, 0.5);
+  gap: var(--space-sm);
+}
+
+.settings-row:last-of-type { border-bottom: none; }
+
+.settings-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  flex: 1;
+  line-height: 1.3;
+}
+
+.settings-sublabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.settings-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-dim);
+  min-width: 36px;
+  text-align: right;
+}
+
+.settings-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-input {
+  width: 68px;
+  text-align: right;
+  padding: 7px 10px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 700;
+  -moz-appearance: textfield;
+}
+
+.settings-input::-webkit-inner-spin-button,
+.settings-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+.settings-input:focus {
+  outline: none;
+  border-color: var(--color-blue);
+}
+
+.settings-unit {
+  font-size: 13px;
+  color: var(--color-text-dim);
+  min-width: 14px;
+}
+
+/* Toggle switch */
+.settings-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.settings-toggle input { display: none; }
+
+.settings-toggle-track {
+  width: 44px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  transition: background 0.2s;
+  position: relative;
+}
+
+.settings-toggle-track::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.settings-toggle input:checked + .settings-toggle-track {
+  background: var(--color-blue);
+}
+
+.settings-toggle input:checked + .settings-toggle-track::after {
+  transform: translateX(18px);
+  background: #fff;
+}
+
+.settings-save-btn {
+  margin-top: var(--space-md);
+}
+
+/* ── Sabotage Button (game bottom bar) ───────────────────────────────────── */
+.btn-sabotage .btn-action-icon { color: var(--color-yellow); }
+
+/* ── Sabotage Menu ───────────────────────────────────────────────────────── */
+.sabotage-room-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid rgba(42, 42, 74, 0.5);
+  gap: var(--space-sm);
+}
+
+.sabotage-room-row:last-child { border-bottom: none; }
+
+.sabotage-room-name {
+  font-size: 15px;
+  font-weight: 700;
+  flex: 1;
+  color: var(--color-text);
+}
+
+.sabotage-badge-locked {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-red);
+  background: rgba(232, 41, 74, 0.1);
+  border: 1px solid var(--color-red);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.sabotage-countdown {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-dim);
+  min-width: 32px;
+  text-align: right;
+}
+
+.sabotage-global-section {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: rgba(232, 41, 74, 0.05);
+  border: 1px solid rgba(232, 41, 74, 0.2);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.sabotage-uses {
+  font-size: 13px;
+  color: var(--color-text-dim);
+}
+
+.sabotage-active-badge {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-red);
+  letter-spacing: 1px;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* CooldownRing (mini, used in SabotageMenu) */
+.cooldown-ring-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.cooldown-ring-svg {
+  transform: rotate(-90deg);
+  display: block;
+}
+
+.cooldown-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-text-dim);
+}
+
+/* ── Lockdown Notification ───────────────────────────────────────────────── */
+.lockdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xl);
+  padding: var(--space-xl);
+  animation: lockdownPulse 1s ease-in-out infinite;
+}
+
+.lockdown-title {
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 0 32px rgba(255, 100, 100, 0.9);
+}
+
+.lockdown-icon {
+  font-size: 56px;
+  animation: pulse 0.6s ease-in-out infinite;
+}
+
+.lockdown-countdown {
+  font-size: 72px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+  text-shadow: 0 0 24px rgba(255,255,255,0.4);
+}
+
+.lockdown-subtitle {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  max-width: 280px;
+  line-height: 1.4;
+}
+
+.lockdown-dismiss-btn {
+  background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.4);
+  color: #fff;
+  padding: 14px 40px;
+  border-radius: var(--radius-full);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  transition: background 0.15s;
+}
+
+.lockdown-dismiss-btn:active {
+  background: rgba(255,255,255,0.3);
+}
+
+/* Room lock modal content */
+.room-lock-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  text-align: center;
+}
+
+.room-lock-icon {
+  font-size: 48px;
+}
+
+.room-lock-message {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.room-lock-message span {
+  color: var(--color-red);
+}
+
+.room-lock-countdown {
+  font-size: 14px;
+  color: var(--color-text-dim);
+}
+
+/* Emergency button locked state */
+.btn-emergency.btn-locked .btn-action-icon { color: var(--color-text-muted); }
+.btn-emergency.btn-locked .btn-action-label { color: var(--color-text-muted); }

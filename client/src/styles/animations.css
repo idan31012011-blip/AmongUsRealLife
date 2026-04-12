@@ -49,3 +49,25 @@
 .killed-screen {
   animation: killFlash 1s ease-in-out 3;
 }
+
+@keyframes lockdownPulse {
+  0%, 100% { background: #3d0010; }
+  50%       { background: #7a0020; }
+}
+
+@keyframes sirens {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(232,41,74,0.6)); transform: scale(1); }
+  50%       { filter: drop-shadow(0 0 20px rgba(232,41,74,1)); transform: scale(1.08); }
+}
+
+@keyframes meetingSlam {
+  0%   { transform: scale(2.5); opacity: 0; }
+  60%  { transform: scale(0.95); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes playerPop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  70%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}

@@ -11,7 +11,8 @@
       "Bash(export PATH=\"$PATH:/c/Program Files/nodejs\")",
       "Bash(npm --version)",
       "Bash(npx vite:*)",
-      "Bash(timeout 5 node server/index.js)"
+      "Bash(timeout 5 node server/index.js)",
+      "Bash(npm run:*)"
     ]
   }
 }
