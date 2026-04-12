@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import socket from '../socket';
+import { playGameEnd } from '../sounds';
 
 // Stages:
 // 0 → black
@@ -12,16 +13,15 @@ export default function GameEndScreen() {
   const { state } = useGame();
   const { winner, winReason, players, isManager, gameCode } = state;
   const [stage, setStage] = useState(0);
+  const crewmatesWin = winner === 'crewmates';
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStage(1), 400);
+    const t1 = setTimeout(() => { setStage(1); playGameEnd(crewmatesWin); }, 400);
     const t2 = setTimeout(() => setStage(2), 1800);
     const t3 = setTimeout(() => setStage(3), 2800);
     const t4 = setTimeout(() => setStage(4), 4200);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
-  }, []);
-
-  const crewmatesWin = winner === 'crewmates';
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const imposter = players.find(p => p.role === 'imposter');
 
   const reasonText = {

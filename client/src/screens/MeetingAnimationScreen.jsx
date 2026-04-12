@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { playEmergencyAlarm } from '../sounds';
 
 function stringToColor(str) {
   let hash = 0;
@@ -14,6 +15,7 @@ export default function MeetingAnimationScreen() {
   const [stage, setStage] = useState(0); // 0=slam, 1=players, 2=done
 
   useEffect(() => {
+    playEmergencyAlarm();
     // Stage 1: title slams in immediately
     // Stage 2: players appear after 0.6s
     const t1 = setTimeout(() => setStage(1), 600);

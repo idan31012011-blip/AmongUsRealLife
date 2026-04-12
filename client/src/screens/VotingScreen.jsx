@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import socket from '../socket';
+import { playVoteResults } from '../sounds';
 
 export default function VotingScreen() {
   const { state, dispatch } = useGame();
@@ -119,6 +120,7 @@ export default function VotingScreen() {
 }
 
 function ResultsOverlay({ ejected, votes, players }) {
+  useEffect(() => { playVoteResults(); }, []);
   const playerMap = Object.fromEntries(players.map(p => [p.id, p.name]));
 
   return (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import socket from '../socket';
+import { playRoleSuspense } from '../sounds';
 
 export default function RoleRevealScreen() {
   const { state } = useGame();
@@ -8,6 +9,7 @@ export default function RoleRevealScreen() {
   const [stage, setStage] = useState('suspense'); // 'suspense' | 'flipping' | 'revealed' | 'waiting'
 
   useEffect(() => {
+    playRoleSuspense();
     // Start the suspense animation
     const t1 = setTimeout(() => setStage('flipping'), 1500);
     const t2 = setTimeout(() => setStage('revealed'), 2800);

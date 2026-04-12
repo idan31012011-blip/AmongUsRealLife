@@ -4,7 +4,7 @@
   "description": "Mobile-first browser companion app for real-life Among Us",
   "scripts": {
     "dev": "concurrently \"node server/index.js\" \"cd client && npx vite --host\"",
-    "build": "cd client && npx vite build",
+    "build": "cd client && npm install && npx vite build",
     "start": "node server/index.js"
   },
   "dependencies": {
