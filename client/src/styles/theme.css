@@ -1,0 +1,53 @@
+:root {
+  /* Colors */
+  --color-bg: #0d0d1a;
+  --color-bg-card: #1a1a2e;
+  --color-bg-card-hover: #20203d;
+  --color-border: #2a2a4a;
+  --color-text: #e8e8ff;
+  --color-text-dim: #8888aa;
+  --color-text-muted: #555577;
+
+  --color-red: #e8294a;
+  --color-red-dark: #b01e38;
+  --color-red-glow: rgba(232, 41, 74, 0.4);
+
+  --color-blue: #3a7bd5;
+  --color-blue-dark: #2a5da8;
+  --color-blue-glow: rgba(58, 123, 213, 0.4);
+
+  --color-green: #2ecc71;
+  --color-green-dark: #27ae60;
+  --color-green-glow: rgba(46, 204, 113, 0.4);
+
+  --color-yellow: #f39c12;
+  --color-orange: #e67e22;
+  --color-purple: #9b59b6;
+
+  /* Typography */
+  --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Courier New', monospace;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.4);
+  --shadow-glow-red: 0 0 20px var(--color-red-glow);
+  --shadow-glow-blue: 0 0 20px var(--color-blue-glow);
+  --shadow-glow-green: 0 0 20px var(--color-green-glow);
+
+  /* Safe area for notched phones */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}

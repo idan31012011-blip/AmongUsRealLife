@@ -1,0 +1,15 @@
+{
+  "name": "among-us-real-life",
+  "version": "1.0.0",
+  "description": "Mobile-first browser companion app for real-life Among Us",
+  "scripts": {
+    "dev": "concurrently \"node server/index.js\" \"cd client && npx vite --host\"",
+    "build": "cd client && npx vite build",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "concurrently": "^8.2.2"
+  }
+}
