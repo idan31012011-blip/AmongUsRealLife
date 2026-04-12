@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import socket from '../socket';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function LobbyScreen() {
   const { state } = useGame();
@@ -40,6 +41,19 @@ export default function LobbyScreen() {
           <span className="code-value">{gameCode}</span>
           <span className="code-hint">{copied ? 'Copied!' : 'Tap to copy link'}</span>
         </div>
+
+        {isManager && (
+          <div className="qr-block">
+            <p className="qr-label">Scan to join</p>
+            <QRCodeSVG
+              value={`${window.location.origin}/?join=${gameCode}`}
+              size={160}
+              bgColor="#ffffff"
+              fgColor="#000000"
+              level="M"
+            />
+          </div>
+        )}
       </div>
 
       <div className="lobby-rooms card">
