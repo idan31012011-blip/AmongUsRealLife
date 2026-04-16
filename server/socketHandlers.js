@@ -64,6 +64,7 @@ function registerHandlers(io, socket) {
       rooms: game.rooms,
       settings: game.settings,
       isManager: socket.id === game.managerId,
+      managerId: game.managerId,
     });
 
     // Notify everyone else in the lobby
@@ -112,6 +113,7 @@ function registerHandlers(io, socket) {
       rooms: game.rooms,
       settings: game.settings,
       isManager: socket.id === game.managerId,
+      managerId: game.managerId,
       taskProgressPercent: calculateTaskProgress(game.tasks),
     };
 
