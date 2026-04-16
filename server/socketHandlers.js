@@ -271,6 +271,13 @@ function registerHandlers(io, socket) {
         killCooldownUntil: player.role === 'imposter' ? game.imposterKillCooldownUntil : 0,
       });
     }
+
+    // Give the imposter their initial sabotage state so globalLockdownUsesLeft
+    // reflects the actual setting (not the client's hardcoded default of 2)
+    const imposterPlayer = [...game.players.values()].find(p => p.role === 'imposter');
+    if (imposterPlayer) {
+      io.to(imposterPlayer.id).emit('sabotage_status', buildSabotageStatus(game));
+    }
   });
 
   // ─── ROLE REVEAL ──────────────────────────────────────────────────────────
@@ -426,7 +433,6 @@ function registerHandlers(io, socket) {
     }, game.settings.roomLockDuration);
 
     game.sabotage.lockedRooms.set(roomName, { expiresAt, timeoutId });
-    game.sabotage.roomLockCooldowns.set(roomName, now + game.settings.roomLockCooldown);
 
     io.to(code).emit('room_locked', {
       roomName,
@@ -462,7 +468,6 @@ function registerHandlers(io, socket) {
     game.sabotage.globalLockdownActive = true;
     game.sabotage.globalLockdownExpiresAt = expiresAt;
     game.sabotage.globalLockdownUsesLeft -= 1;
-    game.sabotage.globalLockdownCooldownUntil = now + game.settings.globalLockdownCooldown;
     game.sabotage.globalLockdownTimeoutId = setTimeout(() => {
       const g = getGame(code);
       if (g) endGlobalLockdown(io, g);
@@ -680,10 +685,18 @@ function unlockRoom(io, game, roomName) {
   if (!entry) return;
   clearTimeout(entry.timeoutId);
   game.sabotage.lockedRooms.delete(roomName);
+
+  // Cooldown starts from when the room unlocks (not when it was locked)
+  game.sabotage.roomLockCooldowns.set(roomName, Date.now() + game.settings.roomLockCooldown);
+
   io.to(game.code).emit('room_unlocked', {
     roomName,
     lockedRooms: buildLockedRoomsList(game),
   });
+
+  // Tell the imposter the cooldown has started
+  const imposter = [...game.players.values()].find(p => p.role === 'imposter');
+  if (imposter) io.to(imposter.id).emit('sabotage_status', buildSabotageStatus(game));
 }
 
 function endGlobalLockdown(io, game) {
@@ -694,6 +707,15 @@ function endGlobalLockdown(io, game) {
   }
   game.sabotage.globalLockdownActive = false;
   game.sabotage.globalLockdownExpiresAt = null;
+
+  // Cooldown starts from when the lockdown ends (not when it was triggered)
+  game.sabotage.globalLockdownCooldownUntil = Date.now() + game.settings.globalLockdownCooldown;
+
+  // Tell the imposter the cooldown has started BEFORE broadcasting lockdown_ended
+  // so their state is correct as soon as the overlay clears
+  const imposter = [...game.players.values()].find(p => p.role === 'imposter');
+  if (imposter) io.to(imposter.id).emit('sabotage_status', buildSabotageStatus(game));
+
   io.to(game.code).emit('global_lockdown_ended', {});
 }
 
