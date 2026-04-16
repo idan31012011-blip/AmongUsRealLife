@@ -4,7 +4,6 @@ import socket from '../socket';
 
 const DEFAULTS_SEC = {
   killCooldown: 20,
-  startKillCooldown: 20,
   taskHoldDuration: 20,
   deadTaskHoldDuration: 10,
   maxLockedRooms: 2,
@@ -68,7 +67,6 @@ function Toggle({ checked, onChange, disabled }) {
 export default function SettingsPanel({ isManager, settings, rooms, gameCode, onClose }) {
   const [local, setLocal] = useState({
     killCooldown: toSec(settings.killCooldown),
-    startKillCooldown: toSec(settings.startKillCooldown),
     taskHoldDuration: toSec(settings.taskHoldDuration),
     deadTaskHoldDuration: toSec(settings.deadTaskHoldDuration),
     sabotageEnabled: settings.sabotageEnabled,
@@ -95,7 +93,6 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
     }
     setLocal({
       killCooldown: toSec(settings.killCooldown),
-      startKillCooldown: toSec(settings.startKillCooldown),
       taskHoldDuration: toSec(settings.taskHoldDuration),
       deadTaskHoldDuration: toSec(settings.deadTaskHoldDuration),
       sabotageEnabled: settings.sabotageEnabled,
@@ -153,7 +150,6 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
       code: gameCode,
       settings: {
         killCooldown: toMs(local.killCooldown),
-        startKillCooldown: toMs(local.startKillCooldown),
         taskHoldDuration: toMs(local.taskHoldDuration),
         deadTaskHoldDuration: toMs(local.deadTaskHoldDuration),
         sabotageEnabled: local.sabotageEnabled,
@@ -181,11 +177,6 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
         <SettingsRow label="Kill cooldown" defaultLabel={`${DEFAULTS_SEC.killCooldown}s`}>
           <NumInput value={local.killCooldown} onChange={v => set('killCooldown', v)}
             min={5} max={120} disabled={ro} />
-        </SettingsRow>
-
-        <SettingsRow label="Initial kill cooldown" defaultLabel={`${DEFAULTS_SEC.startKillCooldown}s`}>
-          <NumInput value={local.startKillCooldown} onChange={v => set('startKillCooldown', v)}
-            min={0} max={120} disabled={ro} />
         </SettingsRow>
 
         <SettingsRow label="Task timer (alive)" defaultLabel={`${DEFAULTS_SEC.taskHoldDuration}s`}>

@@ -182,9 +182,6 @@ function registerHandlers(io, socket) {
     const kc = clampInt(settings.killCooldown, 5000, 120000);
     if (kc !== null) validated.killCooldown = kc;
 
-    const skc = clampInt(settings.startKillCooldown, 0, 120000);
-    if (skc !== null) validated.startKillCooldown = skc;
-
     const thd = clampInt(settings.taskHoldDuration, 5000, 60000);
     if (thd !== null) validated.taskHoldDuration = thd;
 
@@ -216,6 +213,12 @@ function registerHandlers(io, socket) {
     if (mgl !== null) validated.maxGlobalLockdowns = mgl;
 
     Object.assign(game.settings, validated);
+
+    // Keep globalLockdownUsesLeft in sync with maxGlobalLockdowns
+    if (validated.maxGlobalLockdowns !== undefined) {
+      game.sabotage.globalLockdownUsesLeft = validated.maxGlobalLockdowns;
+    }
+
     io.to(code).emit('settings_updated', { settings: game.settings });
   });
 
@@ -256,7 +259,7 @@ function registerHandlers(io, socket) {
     game.revealedPlayers.clear();
     game.tasks = assignRoles(game);
     game.gameStartTime = Date.now();
-    game.imposterKillCooldownUntil = game.gameStartTime + game.settings.startKillCooldown;
+    game.imposterKillCooldownUntil = game.gameStartTime + game.settings.killCooldown;
 
     io.to(code).emit('game_started', { players: buildPublicPlayerList(game.players) });
 

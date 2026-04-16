@@ -84,6 +84,14 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
     globalLockdownUsesLeft,
   } = sabotage;
 
+  // Re-render every second so cooldown checks (Date.now() < cooldownUntil)
+  // stay accurate and buttons reappear as soon as cooldowns expire.
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick(n => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   function lockRoom(roomName) {
     socket.emit('lock_room', { code: gameCode, roomName });
   }

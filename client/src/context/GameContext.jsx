@@ -6,7 +6,6 @@ const GameContext = createContext(null);
 
 const defaultSettings = {
   killCooldown: 20000,
-  startKillCooldown: 20000,
   taskHoldDuration: 20000,
   deadTaskHoldDuration: 10000,
   sabotageEnabled: false,

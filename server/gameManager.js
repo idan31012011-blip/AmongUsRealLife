@@ -25,7 +25,6 @@ function createGame({ managerId, rooms, settings }) {
       killCooldown:           settings?.killCooldown           ?? 20000,
       taskHoldDuration:       settings?.taskHoldDuration       ?? 20000,
       deadTaskHoldDuration:   settings?.deadTaskHoldDuration   ?? 10000,
-      startKillCooldown:      settings?.startKillCooldown      ?? 20000,
       sabotageEnabled:        settings?.sabotageEnabled        ?? false,
       roomLockingEnabled:     settings?.roomLockingEnabled     ?? true,
       maxLockedRooms:         settings?.maxLockedRooms         ?? 2,
