@@ -36,6 +36,7 @@ const initialState = {
   myRole: null,          // 'imposter' | 'crewmate'
   myName: null,
   isManager: false,
+  managerId: null,
   isAlive: true,
   players: [],           // [{ id, name, isAlive, bodyFound, votedOut, disconnected }]
   rooms: [],
@@ -77,6 +78,7 @@ function reducer(state, action) {
         rooms: action.rooms,
         settings: action.settings ?? state.settings,
         isManager: action.isManager,
+        managerId: action.managerId ?? state.managerId,
       };
 
     case 'SETTINGS_UPDATED':
@@ -246,6 +248,7 @@ function reducer(state, action) {
         killCooldownUntil: action.killCooldownUntil || 0,
         hasCalledEmergency: action.hasCalledEmergency || false,
         isManager: action.isManager,
+        managerId: action.managerId ?? state.managerId,
         sabotage: restoredSabotage,
         pendingLockNotification: restoredNotification,
       };

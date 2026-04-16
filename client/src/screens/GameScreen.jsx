@@ -94,7 +94,13 @@ export default function GameScreen() {
               <span>👻 You're dead — complete your tasks to help the crewmates!</span>
             </div>
           )}
-          <TaskList tasks={state.myTasks} gameCode={gameCode} isAlive={isAlive} />
+          <TaskList
+            tasks={state.myTasks}
+            gameCode={gameCode}
+            isAlive={isAlive}
+            aliveDuration={settings.taskHoldDuration}
+            deadDuration={settings.deadTaskHoldDuration}
+          />
         </div>
       )}
 
@@ -127,6 +133,7 @@ export default function GameScreen() {
           {isImposter && !disguised && (
             <KillButton
               cooldownUntil={state.killCooldownUntil}
+              totalCooldown={settings.killCooldown}
               onKill={openKillMenu}
             />
           )}

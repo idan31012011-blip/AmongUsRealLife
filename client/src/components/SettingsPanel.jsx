@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Modal from './Modal';
 import socket from '../socket';
 
@@ -82,8 +82,36 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
     maxGlobalLockdowns: settings.maxGlobalLockdowns,
   });
 
+  const [saved, setSaved] = useState(false);
   const [localRooms, setLocalRooms] = useState([...rooms]);
   const roomsDebounceRef = useRef(null);
+  const isMounted = useRef(false);
+
+  // Sync local state when server confirms updated settings (skip initial mount)
+  useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
+    setLocal({
+      killCooldown: toSec(settings.killCooldown),
+      startKillCooldown: toSec(settings.startKillCooldown),
+      taskHoldDuration: toSec(settings.taskHoldDuration),
+      deadTaskHoldDuration: toSec(settings.deadTaskHoldDuration),
+      sabotageEnabled: settings.sabotageEnabled,
+      roomLockingEnabled: settings.roomLockingEnabled,
+      maxLockedRooms: settings.maxLockedRooms,
+      roomLockDuration: toSec(settings.roomLockDuration),
+      roomLockCooldown: toSec(settings.roomLockCooldown),
+      globalLockdownEnabled: settings.globalLockdownEnabled,
+      globalLockdownDuration: toSec(settings.globalLockdownDuration),
+      globalLockdownCooldown: toSec(settings.globalLockdownCooldown),
+      maxGlobalLockdowns: settings.maxGlobalLockdowns,
+    });
+    setSaved(true);
+    const t = setTimeout(() => setSaved(false), 1500);
+    return () => clearTimeout(t);
+  }, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function set(key, value) {
     setLocal(s => ({ ...s, [key]: value }));
@@ -232,8 +260,8 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
         )}
 
         {isManager && (
-          <button className="btn btn-blue btn-block settings-save-btn" onClick={handleSaveSettings}>
-            Save Settings
+          <button className="btn btn-blue btn-block settings-save-btn" onClick={handleSaveSettings} disabled={saved}>
+            {saved ? 'Saved!' : 'Save Settings'}
           </button>
         )}
 

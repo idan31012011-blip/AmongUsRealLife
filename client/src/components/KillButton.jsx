@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
  * Props:
  *   cooldownUntil (ms timestamp), onKill (fn)
  */
-export default function KillButton({ cooldownUntil, onKill }) {
+export default function KillButton({ cooldownUntil, totalCooldown = 20000, onKill }) {
   const [remaining, setRemaining] = useState(0);
 
   useEffect(() => {
@@ -19,7 +19,6 @@ export default function KillButton({ cooldownUntil, onKill }) {
   }, [cooldownUntil]);
 
   const onCooldown = remaining > 0;
-  const totalCooldown = 20000;
   const progress = onCooldown ? (remaining / totalCooldown) : 0;
   const circumference = 2 * Math.PI * 26;
   const strokeOffset = circumference * (1 - progress);

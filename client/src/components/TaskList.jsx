@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import HoldButton from './HoldButton';
 
-export default function TaskList({ tasks, gameCode, isAlive }) {
+export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, deadDuration }) {
   const [activeTaskId, setActiveTaskId] = useState(null);
 
   if (!tasks || tasks.length === 0) {
     return <div className="no-tasks">No tasks assigned.</div>;
   }
 
-  // Dead crewmates complete in 10s; alive in 20s
-  const holdDuration = isAlive ? 20000 : 10000;
+  const holdDuration = isAlive ? (aliveDuration ?? 20000) : (deadDuration ?? 10000);
 
   return (
     <div className="task-list">
