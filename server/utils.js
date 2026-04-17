@@ -37,4 +37,9 @@ function getTaskDescription(room, index) {
   return GENERIC_TASKS[index % GENERIC_TASKS.length];
 }
 
-module.exports = { generateCode, shuffle, getTaskDescription };
+function generatePlayerCode(existingCodes) {
+  const code = String(Math.floor(100 + Math.random() * 900));
+  return existingCodes.has(code) ? generatePlayerCode(existingCodes) : code;
+}
+
+module.exports = { generateCode, generatePlayerCode, shuffle, getTaskDescription };

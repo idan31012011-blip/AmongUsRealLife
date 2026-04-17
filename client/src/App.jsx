@@ -8,6 +8,7 @@ import KilledScreen from './screens/KilledScreen';
 import MeetingAnimationScreen from './screens/MeetingAnimationScreen';
 import VotingScreen from './screens/VotingScreen';
 import GameEndScreen from './screens/GameEndScreen';
+import StationScreen from './screens/StationScreen';
 
 export default function App() {
   const { state } = useGame();
@@ -22,6 +23,7 @@ export default function App() {
     meeting_animation: <MeetingAnimationScreen />,
     voting: <VotingScreen />,
     game_end: <GameEndScreen />,
+    station: <StationScreen />,
   };
 
   return (

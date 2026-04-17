@@ -21,6 +21,9 @@ function createGame({ managerId, rooms, settings }) {
     imposterKillCooldownUntil: 0,
     gameStartTime: 0,
     meetingHasOccurred: false,
+    stations: new Set(),        // Set<playerId> — station devices
+    stationRooms: new Map(),    // Map<playerId, roomName>
+    playerCodes: new Map(),     // Map<playerId, '3-digit string'>
     settings: {
       killCooldown:           settings?.killCooldown           ?? 20000,
       taskHoldDuration:       settings?.taskHoldDuration       ?? 20000,
@@ -34,6 +37,7 @@ function createGame({ managerId, rooms, settings }) {
       globalLockdownDuration: settings?.globalLockdownDuration ?? 30000,
       globalLockdownCooldown: settings?.globalLockdownCooldown ?? 120000,
       maxGlobalLockdowns:     settings?.maxGlobalLockdowns     ?? 2,
+      stationsEnabled:        settings?.stationsEnabled        ?? false,
     },
     sabotage: {
       lockedRooms: new Map(),         // roomName → { expiresAt, timeoutId }

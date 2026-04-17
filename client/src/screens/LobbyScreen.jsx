@@ -8,9 +8,11 @@ import SettingsPanel from '../components/SettingsPanel';
 export default function LobbyScreen() {
   const { state } = useGame();
   const { t } = useLanguage();
-  const { gameCode, players, isManager, myId, rooms, settings } = state;
+  const { gameCode, players, isManager, myId, rooms, settings, stationAssignments } = state;
   const [copied, setCopied] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [assignPlayerId, setAssignPlayerId] = useState('');
+  const [assignRoomName, setAssignRoomName] = useState('');
 
   const activePlayers = players.filter(p => !p.disconnected);
   const canStart = activePlayers.length >= 3;
@@ -35,6 +37,24 @@ export default function LobbyScreen() {
   function kickPlayer(playerId) {
     socket.emit('kick_player', { code: gameCode, targetId: playerId });
   }
+
+  function assignStation() {
+    if (!assignPlayerId || !assignRoomName) return;
+    socket.emit('assign_station', { code: gameCode, playerId: assignPlayerId, roomName: assignRoomName });
+    setAssignPlayerId('');
+    setAssignRoomName('');
+  }
+
+  function unassignStation(playerId) {
+    socket.emit('unassign_station', { code: gameCode, playerId });
+  }
+
+  const stationPlayerIds = new Set((stationAssignments ?? []).map(s => s.playerId));
+  const stationRoomNames = new Set((stationAssignments ?? []).map(s => s.roomName));
+  const maxStations = activePlayers.length - 3;
+  const canAddStation = isManager && settings.stationsEnabled && activePlayers.length >= 4 && (stationAssignments ?? []).length < maxStations;
+  const availablePlayers = activePlayers.filter(p => !stationPlayerIds.has(p.id) && p.id !== myId);
+  const availableRooms = rooms.filter(r => !stationRoomNames.has(r));
 
   const need = 3 - activePlayers.length;
 
@@ -102,6 +122,62 @@ export default function LobbyScreen() {
         ))}
       </div>
 
+      {/* Station assignments panel */}
+      {settings.stationsEnabled && activePlayers.length >= 4 && (
+        <div className="station-assignment-panel card">
+          <div className="station-panel-header">
+            <span className="label">{t('stationAssignmentTitle')}</span>
+            {isManager && <span className="label-dim">{t('maxStationsInfo', maxStations)}</span>}
+          </div>
+
+          {(stationAssignments ?? []).length === 0 && (
+            <p className="station-no-assignments">{t('noStationsAssigned')}</p>
+          )}
+
+          {(stationAssignments ?? []).map(s => (
+            <div key={s.playerId} className="station-assignment-row">
+              <span className="station-assignment-name">{s.playerName}</span>
+              <span className="badge">{s.roomName}</span>
+              {isManager && (
+                <button className="btn-kick" onClick={() => unassignStation(s.playerId)}>✕</button>
+              )}
+            </div>
+          ))}
+
+          {canAddStation && availablePlayers.length > 0 && availableRooms.length > 0 && (
+            <div className="station-assign-form">
+              <select
+                className="input station-select"
+                value={assignPlayerId}
+                onChange={e => setAssignPlayerId(e.target.value)}
+              >
+                <option value="">{t('selectPlayerPlaceholder')}</option>
+                {availablePlayers.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <select
+                className="input station-select"
+                value={assignRoomName}
+                onChange={e => setAssignRoomName(e.target.value)}
+              >
+                <option value="">{t('selectRoomPlaceholder')}</option>
+                {availableRooms.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <button
+                className="btn btn-blue btn-small"
+                onClick={assignStation}
+                disabled={!assignPlayerId || !assignRoomName}
+              >
+                {t('assignStationBtn')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {isManager ? (
         <div className="lobby-footer">
           <button
@@ -125,6 +201,7 @@ export default function LobbyScreen() {
           rooms={rooms}
           gameCode={gameCode}
           onClose={() => setShowSettings(false)}
+          playerCount={activePlayers.length}
         />
       )}
     </div>

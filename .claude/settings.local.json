@@ -12,7 +12,9 @@
       "Bash(npm --version)",
       "Bash(npx vite:*)",
       "Bash(timeout 5 node server/index.js)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(node -e \"require\\('./server/utils'\\); require\\('./server/gameManager'\\); require\\('./server/gameLogic'\\); console.log\\('Server modules OK'\\);\")",
+      "Bash(node -e \"require\\('./server/socketHandlers'\\); console.log\\('socketHandlers OK'\\);\")"
     ]
   }
 }

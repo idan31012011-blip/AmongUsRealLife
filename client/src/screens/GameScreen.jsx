@@ -42,7 +42,7 @@ export default function GameScreen() {
   const { t } = useLanguage();
   const {
     myRole, isAlive, players, gameCode, taskProgressPercent, myId, isManager,
-    settings, sabotage, pendingLockNotification, rooms,
+    settings, sabotage, pendingLockNotification, pendingStationNotice, rooms,
   } = state;
 
   const [showKillMenu, setShowKillMenu] = useState(false);
@@ -243,6 +243,14 @@ export default function GameScreen() {
         notification={pendingLockNotification}
         onDismiss={() => dispatch({ type: 'DISMISS_LOCK_NOTIFICATION' })}
       />
+
+      {/* Station disconnect banner */}
+      {pendingStationNotice && (
+        <div className="station-disconnect-banner">
+          <span>{t('stationDisconnectedNotice', pendingStationNotice.roomName)}</span>
+          <button className="station-banner-close" onClick={() => dispatch({ type: 'DISMISS_STATION_NOTICE' })}>✕</button>
+        </div>
+      )}
     </div>
   );
 }

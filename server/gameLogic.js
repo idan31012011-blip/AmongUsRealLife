@@ -6,26 +6,41 @@ const { shuffle, getTaskDescription } = require('./utils');
  */
 function assignRoles(game) {
   const playerIds = [...game.players.keys()];
-  const shuffled = shuffle(playerIds);
-
+  // Only non-station players can be imposter/crewmate
+  const nonStationIds = playerIds.filter(id => !game.stations.has(id));
+  const shuffled = shuffle(nonStationIds);
   const imposterId = shuffled[0];
+
+  // Build a map of roomName → stationPlayerId for quick lookup
+  const stationRoomMap = new Map();
+  for (const [playerId, roomName] of game.stationRooms) {
+    stationRoomMap.set(roomName, playerId);
+  }
+
   const tasks = new Map();
 
   for (const [id, player] of game.players) {
-    player.role = id === imposterId ? 'imposter' : 'crewmate';
     player.tasksAssigned = [];
     player.tasksCompleted = new Set();
 
-    // Every player (crewmate and imposter) gets one task per room
+    if (game.stations.has(id)) {
+      player.role = 'station';
+      continue;
+    }
+
+    player.role = id === imposterId ? 'imposter' : 'crewmate';
+
     game.rooms.forEach((room, roomIndex) => {
       const taskId = `${room.toLowerCase().replace(/\s+/g, '-')}-${id}-${roomIndex}`;
+      const isStationRoom = stationRoomMap.has(room);
       const task = {
         id: taskId,
         room,
-        description: getTaskDescription(room, roomIndex),
+        description: isStationRoom ? `Visit the ${room} station` : getTaskDescription(room, roomIndex),
         assignedTo: id,
         completed: false,
-        isFake: id === imposterId, // imposter tasks don't count toward progress
+        isFake: id === imposterId,
+        type: isStationRoom ? 'station' : 'regular',
       };
       tasks.set(taskId, task);
       player.tasksAssigned.push(taskId);
@@ -89,7 +104,7 @@ function tallyVotes(votes, players) {
  * Check win conditions. Returns { winner, reason } or null if game continues.
  */
 function checkWinConditions(game) {
-  const living = [...game.players.values()].filter(p => p.isAlive);
+  const living = [...game.players.values()].filter(p => p.isAlive && p.role !== 'station');
   const livingCount = living.length;
   const imposter = [...game.players.values()].find(p => p.role === 'imposter');
 
@@ -116,14 +131,16 @@ function checkWinConditions(game) {
  * Build the safe player list to send to clients (no role info exposed).
  */
 function buildPublicPlayerList(players) {
-  return [...players.values()].map(p => ({
-    id: p.id,
-    name: p.name,
-    isAlive: p.isAlive,
-    bodyFound: p.bodyFound,
-    votedOut: p.votedOut,
-    disconnected: p.disconnected,
-  }));
+  return [...players.values()]
+    .filter(p => p.role !== 'station')
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      isAlive: p.isAlive,
+      bodyFound: p.bodyFound,
+      votedOut: p.votedOut,
+      disconnected: p.disconnected,
+    }));
 }
 
 /**
@@ -151,6 +168,7 @@ function buildPlayerTasks(player, tasks) {
       description: task.description,
       completed: task.completed,
       isFake: task.isFake,
+      type: task.type ?? 'regular',
     };
   });
 }

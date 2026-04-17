@@ -17,6 +17,7 @@ const defaultSettings = {
   globalLockdownDuration: 30000,
   globalLockdownCooldown: 120000,
   maxGlobalLockdowns: 2,
+  stationsEnabled: false,
 };
 
 const defaultSabotage = {
@@ -30,16 +31,16 @@ const defaultSabotage = {
 
 const initialState = {
   gameCode: null,
-  phase: 'home',         // 'home' | 'setup' | 'lobby' | 'role_reveal' | 'gameplay' | 'meeting_animation' | 'voting' | 'game_end'
+  phase: 'home',         // 'home' | 'setup' | 'lobby' | 'role_reveal' | 'gameplay' | 'station' | 'meeting_animation' | 'voting' | 'game_end'
   myId: null,
-  myRole: null,          // 'imposter' | 'crewmate'
+  myRole: null,          // 'imposter' | 'crewmate' | 'station'
   myName: null,
   isManager: false,
   managerId: null,
   isAlive: true,
   players: [],           // [{ id, name, isAlive, bodyFound, votedOut, disconnected }]
   rooms: [],
-  myTasks: [],           // [{ id, room, description, completed, isFake }]
+  myTasks: [],           // [{ id, room, description, completed, isFake, type }]
   taskProgressPercent: 0,
   killCooldownUntil: 0,
   hasCalledEmergency: false,
@@ -55,6 +56,10 @@ const initialState = {
   settings: { ...defaultSettings },
   sabotage: { ...defaultSabotage },
   pendingLockNotification: null, // { type: 'room'|'global', roomName?, expiresAt }
+  myCode: null,              // 3-digit string, non-station players only
+  stationRoom: null,         // room this device is a station for
+  stationAssignments: [],    // [{ playerId, roomName, playerName }] — lobby
+  pendingStationNotice: null, // { roomName } — shown when station disconnects
 };
 
 function reducer(state, action) {
@@ -78,6 +83,7 @@ function reducer(state, action) {
         settings: action.settings ?? state.settings,
         isManager: action.isManager,
         managerId: action.managerId ?? state.managerId,
+        stationAssignments: action.stationAssignments ?? state.stationAssignments,
       };
 
     case 'SETTINGS_UPDATED':
@@ -120,7 +126,32 @@ function reducer(state, action) {
         myRole: action.role,
         myTasks: action.tasks,
         killCooldownUntil: action.killCooldownUntil || 0,
+        myCode: action.myCode ?? null,
       };
+
+    case 'STATION_DEVICE_READY':
+      return {
+        ...state,
+        phase: 'station',
+        myRole: 'station',
+        stationRoom: action.roomName,
+      };
+
+    case 'STATIONS_UPDATED':
+      return { ...state, stationAssignments: action.stations };
+
+    case 'STATION_DISCONNECTED':
+      return {
+        ...state,
+        myTasks: state.myTasks.map(task => {
+          const reverted = action.revertedTasks.find(r => r.taskId === task.id);
+          return reverted ? { ...task, type: 'regular' } : task;
+        }),
+        pendingStationNotice: { roomName: action.roomName },
+      };
+
+    case 'DISMISS_STATION_NOTICE':
+      return { ...state, pendingStationNotice: null };
 
     case 'ALL_REVEALED':
       return { ...state, phase: 'gameplay', taskProgressPercent: action.taskProgressPercent };
@@ -215,6 +246,10 @@ function reducer(state, action) {
         settings: action.settings ?? state.settings,
         isManager: state.isManager,
         myName: state.myName,
+        stationAssignments: [],
+        myCode: null,
+        stationRoom: null,
+        pendingStationNotice: null,
       };
 
     case 'GAME_STATE_RESTORED': {
@@ -250,6 +285,7 @@ function reducer(state, action) {
         managerId: action.managerId ?? state.managerId,
         sabotage: restoredSabotage,
         pendingLockNotification: restoredNotification,
+        myCode: action.myCode ?? state.myCode,
       };
     }
 
@@ -386,8 +422,20 @@ export function GameProvider({ children }) {
       dispatch({ type: 'GAME_STARTED', players });
     });
 
-    socket.on('role_assigned', ({ role, tasks, killCooldownUntil }) => {
-      dispatch({ type: 'ROLE_ASSIGNED', role, tasks, killCooldownUntil });
+    socket.on('role_assigned', ({ role, tasks, killCooldownUntil, myCode }) => {
+      dispatch({ type: 'ROLE_ASSIGNED', role, tasks, killCooldownUntil, myCode });
+    });
+
+    socket.on('station_device_ready', ({ roomName }) => {
+      dispatch({ type: 'STATION_DEVICE_READY', roomName });
+    });
+
+    socket.on('stations_updated', ({ stations }) => {
+      dispatch({ type: 'STATIONS_UPDATED', stations });
+    });
+
+    socket.on('station_disconnected', ({ roomName, revertedTasks }) => {
+      dispatch({ type: 'STATION_DISCONNECTED', roomName, revertedTasks });
     });
 
     socket.on('all_revealed', ({ taskProgressPercent }) => {
@@ -486,6 +534,9 @@ export function GameProvider({ children }) {
       socket.off('player_disconnected');
       socket.off('game_started');
       socket.off('role_assigned');
+      socket.off('station_device_ready');
+      socket.off('stations_updated');
+      socket.off('station_disconnected');
       socket.off('all_revealed');
       socket.off('task_completed');
       socket.off('kill_initiated');

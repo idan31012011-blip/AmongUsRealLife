@@ -1,4 +1,5 @@
 const { createGame, getGame, deleteGame } = require('./gameManager');
+const { generatePlayerCode, getTaskDescription } = require('./utils');
 const {
   assignRoles,
   calculateTaskProgress,
@@ -65,6 +66,7 @@ function registerHandlers(io, socket) {
       settings: game.settings,
       isManager: socket.id === game.managerId,
       managerId: game.managerId,
+      stationAssignments: buildStationList(game),
     });
 
     // Notify everyone else in the lobby
@@ -119,6 +121,8 @@ function registerHandlers(io, socket) {
 
     if (game.phase === 'lobby') {
       socket.emit('game_joined', base);
+    } else if (player.role === 'station') {
+      socket.emit('station_device_ready', { roomName: game.stationRooms.get(socket.id) });
     } else {
       const sabotageForPlayer = player.role === 'imposter'
         ? buildSabotageStatus(game)
@@ -137,6 +141,7 @@ function registerHandlers(io, socket) {
         isAlive: player.isAlive,
         killCooldownUntil: player.role === 'imposter' ? game.imposterKillCooldownUntil : 0,
         hasCalledEmergency: player.hasCalledEmergency,
+        myCode: game.playerCodes.get(socket.id),
         sabotage: sabotageForPlayer,
       });
     }
@@ -187,6 +192,9 @@ function registerHandlers(io, socket) {
 
     const dthd = clampInt(settings.deadTaskHoldDuration, 5000, 60000);
     if (dthd !== null) validated.deadTaskHoldDuration = dthd;
+
+    // Stations
+    if (typeof settings.stationsEnabled === 'boolean') validated.stationsEnabled = settings.stationsEnabled;
 
     // Sabotage booleans
     if (typeof settings.sabotageEnabled === 'boolean') validated.sabotageEnabled = settings.sabotageEnabled;
@@ -244,6 +252,41 @@ function registerHandlers(io, socket) {
     io.to(code).emit('rooms_updated', { rooms: game.rooms });
   });
 
+  socket.on('assign_station', ({ code, playerId, roomName } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'lobby') return socket.emit('error', { message: 'Can only assign stations in lobby.' });
+    if (socket.id !== game.managerId) return socket.emit('error', { message: 'Only the manager can assign stations.' });
+    if (!game.settings.stationsEnabled) return socket.emit('error', { message: 'Stations not enabled.' });
+    if (!game.players.has(playerId)) return socket.emit('error', { message: 'Player not found.' });
+    if (game.stations.has(playerId)) return socket.emit('error', { message: 'Player already a station.' });
+    if (!game.rooms.includes(roomName)) return socket.emit('error', { message: 'Invalid room.' });
+
+    // Check room not already taken
+    for (const [, r] of game.stationRooms) {
+      if (r === roomName) return socket.emit('error', { message: 'Room already has a station.' });
+    }
+
+    const activePlayers = [...game.players.values()].filter(p => !p.disconnected);
+    const maxStations = activePlayers.length - 3;
+    if (game.stations.size >= maxStations) {
+      return socket.emit('error', { message: 'Maximum stations reached.' });
+    }
+
+    game.stations.add(playerId);
+    game.stationRooms.set(playerId, roomName);
+    io.to(code).emit('stations_updated', { stations: buildStationList(game) });
+  });
+
+  socket.on('unassign_station', ({ code, playerId } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'lobby') return socket.emit('error', { message: 'Can only unassign stations in lobby.' });
+    if (socket.id !== game.managerId) return socket.emit('error', { message: 'Only the manager can unassign stations.' });
+
+    game.stations.delete(playerId);
+    game.stationRooms.delete(playerId);
+    io.to(code).emit('stations_updated', { stations: buildStationList(game) });
+  });
+
   socket.on('start_game', ({ code } = {}) => {
     const game = getGame(code);
     if (!game) return socket.emit('error', { message: 'Game not found.' });
@@ -261,15 +304,36 @@ function registerHandlers(io, socket) {
     game.gameStartTime = Date.now();
     game.imposterKillCooldownUntil = game.gameStartTime + game.settings.killCooldown;
 
+    // Pre-add station players to revealedPlayers so they don't block the transition
+    for (const stationId of game.stations) {
+      game.revealedPlayers.add(stationId);
+    }
+
+    // Generate private 3-digit codes for non-station players
+    game.playerCodes = new Map();
+    const usedCodes = new Set();
+    for (const [id, player] of game.players) {
+      if (!game.stations.has(id)) {
+        const playerCode = generatePlayerCode(usedCodes);
+        usedCodes.add(playerCode);
+        game.playerCodes.set(id, playerCode);
+      }
+    }
+
     io.to(code).emit('game_started', { players: buildPublicPlayerList(game.players) });
 
     // Send each player their role and tasks privately
     for (const [id, player] of game.players) {
-      io.to(id).emit('role_assigned', {
-        role: player.role,
-        tasks: buildPlayerTasks(player, game.tasks),
-        killCooldownUntil: player.role === 'imposter' ? game.imposterKillCooldownUntil : 0,
-      });
+      if (player.role === 'station') {
+        io.to(id).emit('station_device_ready', { roomName: game.stationRooms.get(id) });
+      } else {
+        io.to(id).emit('role_assigned', {
+          role: player.role,
+          tasks: buildPlayerTasks(player, game.tasks),
+          killCooldownUntil: player.role === 'imposter' ? game.imposterKillCooldownUntil : 0,
+          myCode: game.playerCodes.get(id),
+        });
+      }
     }
 
     // Give the imposter their initial sabotage state so globalLockdownUsesLeft
@@ -311,6 +375,7 @@ function registerHandlers(io, socket) {
 
     const task = game.tasks.get(taskId);
     if (!task || task.assignedTo !== socket.id || task.completed) return;
+    if (task.type === 'station') return; // station tasks completed at the station device
 
     game.taskHoldStartTimes.set(taskId, Date.now());
   });
@@ -332,6 +397,7 @@ function registerHandlers(io, socket) {
 
     const task = game.tasks.get(taskId);
     if (!task || task.assignedTo !== socket.id || task.completed) return;
+    if (task.type === 'station') return; // station tasks completed at the station device
 
     // Validate timing: server must have recorded a hold start
     const holdStart = game.taskHoldStartTimes.get(taskId);
@@ -360,6 +426,80 @@ function registerHandlers(io, socket) {
     if (result) endGame(io, game, result);
   });
 
+  // ─── STATIONS ─────────────────────────────────────────────────────────────
+
+  socket.on('station_validate_code', ({ code, enteredCode } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return;
+    if (!game.stations.has(socket.id)) return;
+
+    const stationRoom = game.stationRooms.get(socket.id);
+
+    // Find which player owns this code
+    let foundPlayerId = null;
+    for (const [playerId, pCode] of game.playerCodes) {
+      if (pCode === enteredCode) { foundPlayerId = playerId; break; }
+    }
+
+    if (!foundPlayerId) {
+      return socket.emit('station_code_result', { valid: false, reason: 'invalid' });
+    }
+
+    const player = game.players.get(foundPlayerId);
+    if (!player) {
+      return socket.emit('station_code_result', { valid: false, reason: 'invalid' });
+    }
+
+    // Find the station task for this player in this station's room
+    const stationTask = [...game.tasks.values()].find(
+      t => t.assignedTo === foundPlayerId && t.room === stationRoom && t.type === 'station'
+    );
+
+    if (!stationTask) {
+      return socket.emit('station_code_result', { valid: false, reason: 'no_task' });
+    }
+
+    if (stationTask.completed) {
+      return socket.emit('station_code_result', { valid: false, reason: 'already_completed', playerName: player.name });
+    }
+
+    socket.emit('station_code_result', {
+      valid: true,
+      playerName: player.name,
+      playerId: foundPlayerId,
+      taskId: stationTask.id,
+    });
+  });
+
+  socket.on('station_task_complete', ({ code, playerId } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return;
+    if (!game.stations.has(socket.id)) return;
+
+    const stationRoom = game.stationRooms.get(socket.id);
+    const player = game.players.get(playerId);
+    if (!player) return;
+
+    // Apply the same dead-task rules as regular tasks
+    if (!canDoTask(player, game)) return;
+
+    const stationTask = [...game.tasks.values()].find(
+      t => t.assignedTo === playerId && t.room === stationRoom && t.type === 'station'
+    );
+
+    if (!stationTask || stationTask.completed) return;
+
+    stationTask.completed = true;
+    player.tasksCompleted.add(stationTask.id);
+
+    const progressPercent = calculateTaskProgress(game.tasks);
+    io.to(code).emit('task_completed', { taskId: stationTask.id, progressPercent, playerId });
+    socket.emit('station_success', { playerName: player.name });
+
+    const result = checkWinConditions(game);
+    if (result) endGame(io, game, result);
+  });
+
   // ─── KILL ─────────────────────────────────────────────────────────────────
 
   socket.on('kill_player', ({ code, targetId } = {}) => {
@@ -373,6 +513,7 @@ function registerHandlers(io, socket) {
 
     const target = game.players.get(targetId);
     if (!target || !target.isAlive) return socket.emit('error', { message: 'Invalid target.' });
+    if (game.stations.has(targetId)) return socket.emit('error', { message: 'Cannot kill a station device.' });
 
     const now = Date.now();
     if (now < game.imposterKillCooldownUntil) {
@@ -525,6 +666,7 @@ function registerHandlers(io, socket) {
 
     const voter = game.players.get(socket.id);
     if (!voter || !voter.isAlive) return socket.emit('error', { message: 'Dead players cannot vote.' });
+    if (game.stations.has(socket.id)) return socket.emit('error', { message: 'Station devices cannot vote.' });
     if (game.votes.has(socket.id)) return socket.emit('error', { message: 'Already voted.' });
 
     // Validate target: must be a living player or 'skip'
@@ -538,8 +680,8 @@ function registerHandlers(io, socket) {
     // Notify all that someone voted (but not who they voted for)
     io.to(code).emit('vote_cast', { voterId: socket.id, totalVotes: game.votes.size });
 
-    // Check if everyone living has voted
-    const livingPlayers = [...game.players.values()].filter(p => p.isAlive);
+    // Check if everyone living (non-station) has voted
+    const livingPlayers = [...game.players.values()].filter(p => p.isAlive && !game.stations.has(p.id));
     if (game.votes.size >= livingPlayers.length) {
       resolveVoting(io, game);
     }
@@ -580,6 +722,9 @@ function registerHandlers(io, socket) {
     game.imposterKillCooldownUntil = 0;
     game.gameStartTime = 0;
     game.meetingHasOccurred = false;
+    game.stations = new Set();
+    game.stationRooms = new Map();
+    game.playerCodes = new Map();
     game.sabotage = {
       lockedRooms: new Map(),
       roomLockCooldowns: new Map(),
@@ -630,6 +775,16 @@ function registerHandlers(io, socket) {
     }
 
     if (player) {
+      // If a station device disconnected, revert its room's tasks to regular
+      if (game.stations.has(socket.id)) {
+        const stationRoom = game.stationRooms.get(socket.id);
+        if (stationRoom) revertStationTasks(io, game, stationRoom, getTaskDescription);
+        game.stations.delete(socket.id);
+        game.stationRooms.delete(socket.id);
+        // Remove station player from players entirely — they don't reconnect as station
+        game.players.delete(socket.id);
+        return;
+      }
       player.disconnected = true;
       io.to(game.code).emit('player_disconnected', { playerId: socket.id });
     }
@@ -650,6 +805,31 @@ function registerHandlers(io, socket) {
       }
     }, 60000);
   });
+}
+
+// ─── STATION HELPERS ────────────────────────────────────────────────────────
+
+function buildStationList(game) {
+  const list = [];
+  for (const [playerId, roomName] of game.stationRooms) {
+    const player = game.players.get(playerId);
+    list.push({ playerId, roomName, playerName: player?.name ?? '?' });
+  }
+  return list;
+}
+
+function revertStationTasks(io, game, roomName) {
+  const revertedTasks = [];
+  for (const task of game.tasks.values()) {
+    if (task.room === roomName && task.type === 'station' && !task.completed) {
+      task.type = 'regular';
+      task.description = getTaskDescription(roomName, 0);
+      revertedTasks.push({ taskId: task.id, assignedTo: task.assignedTo });
+    }
+  }
+  if (revertedTasks.length > 0) {
+    io.to(game.code).emit('station_disconnected', { roomName, revertedTasks });
+  }
 }
 
 // ─── SABOTAGE HELPERS ───────────────────────────────────────────────────────

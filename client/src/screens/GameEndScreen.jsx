@@ -56,16 +56,22 @@ export default function GameEndScreen() {
 
       {stage >= 4 && (
         <div className="end-player-list end-player-list-in">
-          {players.map(p => (
-            <div
-              key={p.id}
-              className={`end-player-row ${p.role === 'imposter' ? 'end-row-imposter' : 'end-row-crewmate'}`}
-            >
-              <span className="end-player-icon">{p.role === 'imposter' ? '🔪' : '🚀'}</span>
-              <span className="end-player-name">{p.name}</span>
-              <span className="end-player-role">{p.role === 'imposter' ? t('roleImposter') : t('roleCrewmate')}</span>
-            </div>
-          ))}
+          {players.map(p => {
+            const isImposter = p.role === 'imposter';
+            const isStation = p.role === 'station';
+            return (
+              <div
+                key={p.id}
+                className={`end-player-row ${isImposter ? 'end-row-imposter' : isStation ? 'end-row-station' : 'end-row-crewmate'}`}
+              >
+                <span className="end-player-icon">{isImposter ? '🔪' : isStation ? '📍' : '🚀'}</span>
+                <span className="end-player-name">{p.name}</span>
+                <span className="end-player-role">
+                  {isImposter ? t('roleImposter') : isStation ? t('roleStation') : t('roleCrewmate')}
+                </span>
+              </div>
+            );
+          })}
 
           <div className="end-actions">
             {isManager && (

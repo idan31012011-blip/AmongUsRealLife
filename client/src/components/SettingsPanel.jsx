@@ -66,7 +66,7 @@ function Toggle({ checked, onChange, disabled }) {
   );
 }
 
-export default function SettingsPanel({ isManager, settings, rooms, gameCode, onClose }) {
+export default function SettingsPanel({ isManager, settings, rooms, gameCode, onClose, playerCount }) {
   const { t } = useLanguage();
 
   const [local, setLocal] = useState({
@@ -82,6 +82,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
     globalLockdownDuration: toSec(settings.globalLockdownDuration),
     globalLockdownCooldown: toSec(settings.globalLockdownCooldown),
     maxGlobalLockdowns: settings.maxGlobalLockdowns,
+    stationsEnabled: settings.stationsEnabled ?? false,
   });
 
   const [saved, setSaved] = useState(false);
@@ -107,6 +108,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
       globalLockdownDuration: toSec(settings.globalLockdownDuration),
       globalLockdownCooldown: toSec(settings.globalLockdownCooldown),
       maxGlobalLockdowns: settings.maxGlobalLockdowns,
+      stationsEnabled: settings.stationsEnabled ?? false,
     });
     setSaved(true);
     const timer = setTimeout(() => setSaved(false), 1500);
@@ -164,6 +166,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
         globalLockdownDuration: toMs(local.globalLockdownDuration),
         globalLockdownCooldown: toMs(local.globalLockdownCooldown),
         maxGlobalLockdowns: parseInt(local.maxGlobalLockdowns, 10),
+        stationsEnabled: local.stationsEnabled,
       },
     });
   }
@@ -251,6 +254,22 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
               </>
             )}
           </>
+        )}
+
+        {/* ── Stations ────────────────────────────────────────────────── */}
+        <div className="settings-section-title" style={{ marginTop: 20 }}>{t('settingsStations')}</div>
+
+        <SettingsRow label={t('stationsEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOff'))}>
+          <Toggle
+            checked={local.stationsEnabled}
+            onChange={v => set('stationsEnabled', v)}
+            disabled={ro || (playerCount ?? 0) < 4}
+          />
+        </SettingsRow>
+        {!ro && (playerCount ?? 0) < 4 && (
+          <p className="settings-sublabel" style={{ marginTop: 4, textAlign: 'right', color: 'var(--color-text-dim)' }}>
+            {t('stationsNeedPlayers')}
+          </p>
         )}
 
         {isManager && (
