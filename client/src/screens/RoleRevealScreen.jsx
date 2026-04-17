@@ -7,8 +7,11 @@ import { playRoleSuspense } from '../sounds';
 export default function RoleRevealScreen() {
   const { state } = useGame();
   const { t } = useLanguage();
-  const { myRole, gameCode } = state;
+  const { myRole, gameCode, isDoctor } = state;
   const [stage, setStage] = useState('suspense'); // 'suspense' | 'flipping' | 'revealed' | 'waiting'
+  const [motionGranted, setMotionGranted] = useState(false);
+  const needsMotionPrompt = typeof DeviceMotionEvent !== 'undefined' &&
+    typeof DeviceMotionEvent.requestPermission === 'function' && !motionGranted;
 
   useEffect(() => {
     playRoleSuspense();
@@ -17,8 +20,21 @@ export default function RoleRevealScreen() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  function handleDismiss() {
+  async function requestMotion() {
+    try {
+      await DeviceMotionEvent.requestPermission();
+    } catch (_) {}
+    setMotionGranted(true);
+  }
+
+  async function handleDismiss() {
     if (stage !== 'revealed') return;
+    if (needsMotionPrompt) return; // must grant motion first
+    // Request motion permission on iOS (requires user gesture)
+    if (typeof DeviceMotionEvent !== 'undefined' &&
+        typeof DeviceMotionEvent.requestPermission === 'function') {
+      try { await DeviceMotionEvent.requestPermission(); } catch (_) {}
+    }
     setStage('waiting');
     socket.emit('role_reveal_done', { code: gameCode });
   }
@@ -49,7 +65,23 @@ export default function RoleRevealScreen() {
         </div>
       </div>
 
-      {stage === 'revealed' && (
+      {stage === 'revealed' && isDoctor && (
+        <div className="doctor-reveal-badge">
+          <span className="doctor-reveal-icon">🩺</span>
+          <div>
+            <div className="doctor-reveal-title">{t('doctorNotification')}</div>
+            <div className="doctor-reveal-desc">{t('doctorNotificationDesc')}</div>
+          </div>
+        </div>
+      )}
+
+      {stage === 'revealed' && needsMotionPrompt && (
+        <button className="btn btn-ghost btn-small motion-permission-btn" onClick={requestMotion}>
+          {t('enableMotionBtn')}
+        </button>
+      )}
+
+      {stage === 'revealed' && !needsMotionPrompt && (
         <div className="reveal-tap-hint">{t('tapToContinue')}</div>
       )}
 

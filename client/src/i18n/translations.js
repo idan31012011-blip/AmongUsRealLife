@@ -193,6 +193,18 @@ export const translations = {
     simonWrong: 'Wrong! Try again (faster)…',
     simonPlayingFor: (name) => `Playing for: ${name}`,
     stationDisconnectedNotice: (room) => `${room} station offline — task reverted`,
+
+    // Doctor
+    settingsDoctor: 'Doctor',
+    doctorEnabledLabel: 'Enable Doctor sub-role',
+    doctorNotification: 'You are also the Doctor',
+    doctorNotificationDesc: 'You can monitor every player\'s vitals.',
+    doctorBtn: '🩺',
+    monitorTitle: 'Patient Monitor',
+    monitorAlive: 'Alive',
+    monitorDead: 'Flatline',
+    monitorYou: '(you)',
+    enableMotionBtn: 'Enable Motion Sensors',
   },
 
   he: {
@@ -389,6 +401,18 @@ export const translations = {
     simonWrong: 'שגוי! נסה שנית (מהר יותר)…',
     simonPlayingFor: (name) => `משחק עבור: ${name}`,
     stationDisconnectedNotice: (room) => `עמדת ${room} התנתקה — משימה הוחזרה`,
+
+    // Doctor
+    settingsDoctor: 'רופא',
+    doctorEnabledLabel: 'הפעל תפקיד משנה: רופא',
+    doctorNotification: 'אתה גם הרופא',
+    doctorNotificationDesc: 'תוכל לנטר את הסימנים החיוניים של כל שחקן.',
+    doctorBtn: '🩺',
+    monitorTitle: 'ניטור מטופלים',
+    monitorAlive: 'חי',
+    monitorDead: 'קו שטוח',
+    monitorYou: '(אני)',
+    enableMotionBtn: 'אפשר חיישני תנועה',
   },
 };
 

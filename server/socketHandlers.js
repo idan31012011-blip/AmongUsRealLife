@@ -196,6 +196,9 @@ function registerHandlers(io, socket) {
     // Stations
     if (typeof settings.stationsEnabled === 'boolean') validated.stationsEnabled = settings.stationsEnabled;
 
+    // Doctor
+    if (typeof settings.doctorEnabled === 'boolean') validated.doctorEnabled = settings.doctorEnabled;
+
     // Sabotage booleans
     if (typeof settings.sabotageEnabled === 'boolean') validated.sabotageEnabled = settings.sabotageEnabled;
     if (typeof settings.roomLockingEnabled === 'boolean') validated.roomLockingEnabled = settings.roomLockingEnabled;
@@ -320,6 +323,15 @@ function registerHandlers(io, socket) {
       }
     }
 
+    // Assign doctor sub-role
+    game.doctorId = null;
+    if (game.settings.doctorEnabled) {
+      const eligible = [...game.players.values()].filter(p => p.role !== 'station');
+      if (eligible.length > 0) {
+        game.doctorId = eligible[Math.floor(Math.random() * eligible.length)].id;
+      }
+    }
+
     io.to(code).emit('game_started', { players: buildPublicPlayerList(game.players) });
 
     // Send each player their role and tasks privately
@@ -334,6 +346,11 @@ function registerHandlers(io, socket) {
           myCode: game.playerCodes.get(id),
         });
       }
+    }
+
+    // Notify doctor privately
+    if (game.doctorId) {
+      io.to(game.doctorId).emit('doctor_assigned');
     }
 
     // Give the imposter their initial sabotage state so globalLockdownUsesLeft
@@ -498,6 +515,14 @@ function registerHandlers(io, socket) {
 
     const result = checkWinConditions(game);
     if (result) endGame(io, game, result);
+  });
+
+  // ─── MOTION ───────────────────────────────────────────────────────────────
+
+  socket.on('motion_update', ({ code, magnitude } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay' || !game.doctorId) return;
+    io.to(game.doctorId).emit('player_motion', { playerId: socket.id, magnitude });
   });
 
   // ─── KILL ─────────────────────────────────────────────────────────────────
@@ -725,6 +750,7 @@ function registerHandlers(io, socket) {
     game.stations = new Set();
     game.stationRooms = new Map();
     game.playerCodes = new Map();
+    game.doctorId = null;
     game.sabotage = {
       lockedRooms: new Map(),
       roomLockCooldowns: new Map(),

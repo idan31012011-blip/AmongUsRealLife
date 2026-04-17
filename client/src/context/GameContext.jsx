@@ -60,6 +60,7 @@ const initialState = {
   stationRoom: null,         // room this device is a station for
   stationAssignments: [],    // [{ playerId, roomName, playerName }] — lobby
   pendingStationNotice: null, // { roomName } — shown when station disconnects
+  isDoctor: false,           // doctor sub-role
 };
 
 function reducer(state, action) {
@@ -163,6 +164,9 @@ function reducer(state, action) {
     case 'DISMISS_STATION_NOTICE':
       return { ...state, pendingStationNotice: null };
 
+    case 'DOCTOR_ASSIGNED':
+      return { ...state, isDoctor: true };
+
     case 'ALL_REVEALED':
       return { ...state, phase: 'gameplay', taskProgressPercent: action.taskProgressPercent };
 
@@ -260,6 +264,7 @@ function reducer(state, action) {
         myCode: null,
         stationRoom: null,
         pendingStationNotice: null,
+        isDoctor: false,
       };
 
     case 'GAME_STATE_RESTORED': {
@@ -448,6 +453,10 @@ export function GameProvider({ children }) {
       dispatch({ type: 'STATION_DISCONNECTED', roomName, revertedTasks });
     });
 
+    socket.on('doctor_assigned', () => {
+      dispatch({ type: 'DOCTOR_ASSIGNED' });
+    });
+
     socket.on('all_revealed', ({ taskProgressPercent }) => {
       dispatch({ type: 'ALL_REVEALED', taskProgressPercent });
     });
@@ -547,6 +556,7 @@ export function GameProvider({ children }) {
       socket.off('station_device_ready');
       socket.off('stations_updated');
       socket.off('station_disconnected');
+      socket.off('doctor_assigned');
       socket.off('all_revealed');
       socket.off('task_completed');
       socket.off('kill_initiated');
@@ -570,6 +580,30 @@ export function GameProvider({ children }) {
       socket.off('error');
     };
   }, []);
+
+  // Motion broadcasting — runs for all non-station players during gameplay
+  useEffect(() => {
+    const activePhases = ['gameplay', 'voting', 'meeting_animation'];
+    if (!activePhases.includes(state.phase) || state.myRole === 'station' || !state.gameCode) return;
+
+    let lastMagnitude = 0;
+
+    function handleMotion(e) {
+      const a = e.accelerationIncludingGravity || e.acceleration;
+      if (!a) return;
+      lastMagnitude = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2);
+    }
+
+    window.addEventListener('devicemotion', handleMotion);
+    const interval = setInterval(() => {
+      socket.emit('motion_update', { code: state.gameCode, magnitude: lastMagnitude });
+    }, 100);
+
+    return () => {
+      window.removeEventListener('devicemotion', handleMotion);
+      clearInterval(interval);
+    };
+  }, [state.phase, state.myRole, state.gameCode]);
 
   return (
     <GameContext.Provider value={{ state, dispatch }}>

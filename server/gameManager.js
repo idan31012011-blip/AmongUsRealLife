@@ -24,6 +24,7 @@ function createGame({ managerId, rooms, settings }) {
     stations: new Set(),        // Set<playerId> — station devices
     stationRooms: new Map(),    // Map<playerId, roomName>
     playerCodes: new Map(),     // Map<playerId, '3-digit string'>
+    doctorId: null,             // playerId of the doctor (sub-role)
     settings: {
       killCooldown:           settings?.killCooldown           ?? 20000,
       taskHoldDuration:       settings?.taskHoldDuration       ?? 20000,
@@ -38,6 +39,7 @@ function createGame({ managerId, rooms, settings }) {
       globalLockdownCooldown: settings?.globalLockdownCooldown ?? 120000,
       maxGlobalLockdowns:     settings?.maxGlobalLockdowns     ?? 2,
       stationsEnabled:        settings?.stationsEnabled        ?? false,
+      doctorEnabled:          settings?.doctorEnabled          ?? false,
     },
     sabotage: {
       lockedRooms: new Map(),         // roomName → { expiresAt, timeoutId }

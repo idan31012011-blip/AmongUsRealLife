@@ -8,6 +8,7 @@ import KillButton from '../components/KillButton';
 import Modal from '../components/Modal';
 import SabotageMenu from '../components/SabotageMenu';
 import LockdownNotification from '../components/LockdownNotification';
+import MonitorMenu from '../components/MonitorMenu';
 
 // Countdown for a locked room (shown on left side panel)
 function RoomLockTimer({ expiresAt }) {
@@ -42,7 +43,7 @@ export default function GameScreen() {
   const { t } = useLanguage();
   const {
     myRole, isAlive, players, gameCode, taskProgressPercent, myId, isManager,
-    settings, sabotage, pendingLockNotification, pendingStationNotice, rooms,
+    settings, sabotage, pendingLockNotification, pendingStationNotice, rooms, isDoctor,
   } = state;
 
   const [showKillMenu, setShowKillMenu] = useState(false);
@@ -50,6 +51,7 @@ export default function GameScreen() {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [disguised, setDisguised] = useState(false);
   const [showSabotageMenu, setShowSabotageMenu] = useState(false);
+  const [showMonitor, setShowMonitor] = useState(false);
 
   const livingTargets = players.filter(p => p.isAlive && p.id !== myId);
 
@@ -145,6 +147,13 @@ export default function GameScreen() {
               <GlobalLockTimer expiresAt={sabotage.globalLockdownExpiresAt} />
             )}
           </button>
+
+          {isDoctor && (
+            <button className="btn-action btn-monitor" onClick={() => setShowMonitor(true)}>
+              <span className="btn-action-icon">{t('doctorBtn')}</span>
+              <span className="btn-action-label">{t('monitorTitle')}</span>
+            </button>
+          )}
 
           {isImposter && !disguised && settings.sabotageEnabled && (
             <button
@@ -243,6 +252,9 @@ export default function GameScreen() {
         notification={pendingLockNotification}
         onDismiss={() => dispatch({ type: 'DISMISS_LOCK_NOTIFICATION' })}
       />
+
+      {/* Doctor monitor */}
+      {showMonitor && <MonitorMenu onClose={() => setShowMonitor(false)} />}
 
       {/* Station disconnect banner */}
       {pendingStationNotice && (

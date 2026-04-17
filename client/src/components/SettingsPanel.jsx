@@ -83,6 +83,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
     globalLockdownCooldown: toSec(settings.globalLockdownCooldown),
     maxGlobalLockdowns: settings.maxGlobalLockdowns,
     stationsEnabled: settings.stationsEnabled ?? false,
+    doctorEnabled: settings.doctorEnabled ?? false,
   });
 
   const [saved, setSaved] = useState(false);
@@ -109,6 +110,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
       globalLockdownCooldown: toSec(settings.globalLockdownCooldown),
       maxGlobalLockdowns: settings.maxGlobalLockdowns,
       stationsEnabled: settings.stationsEnabled ?? false,
+      doctorEnabled: settings.doctorEnabled ?? false,
     });
     setSaved(true);
     const timer = setTimeout(() => setSaved(false), 1500);
@@ -167,6 +169,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
         globalLockdownCooldown: toMs(local.globalLockdownCooldown),
         maxGlobalLockdowns: parseInt(local.maxGlobalLockdowns, 10),
         stationsEnabled: local.stationsEnabled,
+        doctorEnabled: local.doctorEnabled,
       },
     });
   }
@@ -271,6 +274,13 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
             {t('stationsNeedPlayers')}
           </p>
         )}
+
+        {/* ── Doctor ──────────────────────────────────────────────────── */}
+        <div className="settings-section-title" style={{ marginTop: 20 }}>{t('settingsDoctor')}</div>
+
+        <SettingsRow label={t('doctorEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOff'))}>
+          <Toggle checked={local.doctorEnabled} onChange={v => set('doctorEnabled', v)} disabled={ro} />
+        </SettingsRow>
 
         {isManager && (
           <button className="btn btn-blue btn-block settings-save-btn" onClick={handleSaveSettings} disabled={saved}>
