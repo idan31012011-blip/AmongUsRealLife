@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
+import { useLanguage } from '../context/LanguageContext';
 import socket from '../socket';
 import TaskProgressBar from '../components/TaskProgressBar';
 import TaskList from '../components/TaskList';
@@ -38,22 +39,21 @@ function GlobalLockTimer({ expiresAt }) {
 
 export default function GameScreen() {
   const { state, dispatch } = useGame();
+  const { t } = useLanguage();
   const {
     myRole, isAlive, players, gameCode, taskProgressPercent, myId, isManager,
     settings, sabotage, pendingLockNotification, rooms,
   } = state;
 
   const [showKillMenu, setShowKillMenu] = useState(false);
-  const [pendingKillTarget, setPendingKillTarget] = useState(null); // { id, name }
+  const [pendingKillTarget, setPendingKillTarget] = useState(null);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
-  const [disguised, setDisguised] = useState(false); // imposter-only: fake crewmate appearance
+  const [disguised, setDisguised] = useState(false);
   const [showSabotageMenu, setShowSabotageMenu] = useState(false);
 
   const livingTargets = players.filter(p => p.isAlive && p.id !== myId);
 
-  function openKillMenu() {
-    setShowKillMenu(true);
-  }
+  function openKillMenu() { setShowKillMenu(true); }
 
   function selectKillTarget(player) {
     setShowKillMenu(false);
@@ -81,8 +81,6 @@ export default function GameScreen() {
   const myPlayer = players.find(p => p.id === myId);
   const isLocked = isDead && !myPlayer?.bodyFound;
   const lockdownActive = sabotage.globalLockdownActive;
-
-  // When disguised, show crewmate colors; real imposter controls still work
   const showAsImposter = isImposter && !disguised;
 
   return (
@@ -92,10 +90,9 @@ export default function GameScreen() {
         <TaskProgressBar percent={taskProgressPercent} />
       </div>
 
-      {/* Role badge — disguised shows blue crewmate */}
+      {/* Role badge */}
       <div className={`role-badge ${showAsImposter ? 'role-imposter' : 'role-crewmate'}`}>
-        {isDead ? '💀 Dead' : showAsImposter ? '🔪 Imposter' : '🚀 Crewmate'}
-        {/* Disguise toggle (imposter only, hidden when dead) */}
+        {isDead ? t('deadRole') : showAsImposter ? t('imposterRole') : t('crewmateRole')}
         {isImposter && !isDead && (
           <button
             className={`disguise-toggle ${disguised ? 'disguise-on' : ''}`}
@@ -111,15 +108,15 @@ export default function GameScreen() {
       {isLocked ? (
         <div className="locked-message">
           <div className="locked-icon">👻</div>
-          <h2>You're dead</h2>
-          <p>Waiting for an emergency meeting…</p>
-          <p className="locked-sub">You can complete your tasks once an emergency meeting is called.</p>
+          <h2>{t('ghostTitle')}</h2>
+          <p>{t('waitingForMeeting')}</p>
+          <p className="locked-sub">{t('lockedDeadSub')}</p>
         </div>
       ) : (
         <div className="task-area">
           {isDead && (
             <div className="dead-notice">
-              <span>👻 You're dead — complete your tasks to help the crewmates!</span>
+              <span>👻 {t('deadTaskNotice')}</span>
             </div>
           )}
           <TaskList
@@ -137,31 +134,28 @@ export default function GameScreen() {
       {!isDead && (
         <div className={`game-bottombar ${showAsImposter ? 'bar-imposter' : 'bar-crewmate'}`}>
 
-          {/* Emergency meeting button — disabled during global lockdown */}
           <button
             className={`btn-action btn-emergency ${lockdownActive ? 'btn-locked btn-disabled' : ''}`}
             onClick={callEmergency}
             disabled={lockdownActive}
           >
             <span className="btn-action-icon">{lockdownActive ? '🔒' : '🚨'}</span>
-            <span className="btn-action-label">{lockdownActive ? 'Locked' : 'Meeting'}</span>
+            <span className="btn-action-label">{lockdownActive ? t('lockedBtn') : t('meetingBtn')}</span>
             {lockdownActive && sabotage.globalLockdownExpiresAt && (
               <GlobalLockTimer expiresAt={sabotage.globalLockdownExpiresAt} />
             )}
           </button>
 
-          {/* Sabotage button — imposter only, when sabotage is enabled */}
           {isImposter && !disguised && settings.sabotageEnabled && (
             <button
               className="btn-action btn-sabotage"
               onClick={() => setShowSabotageMenu(true)}
             >
               <span className="btn-action-icon">⚡</span>
-              <span className="btn-action-label">Sabotage</span>
+              <span className="btn-action-label">{t('sabotageBtn')}</span>
             </button>
           )}
 
-          {/* Kill button — imposter only, not disguised */}
           {isImposter && !disguised && (
             <KillButton
               cooldownUntil={state.killCooldownUntil}
@@ -176,16 +170,16 @@ export default function GameScreen() {
       {isManager && (
         <div className="manager-controls">
           <button className="btn btn-ghost btn-small" onClick={() => setShowEndConfirm(true)}>
-            End Game
+            {t('endGameBtn')}
           </button>
         </div>
       )}
 
-      {/* Step 1: pick target */}
+      {/* Kill target picker */}
       {showKillMenu && (
-        <Modal title="Kill Who?" onClose={() => setShowKillMenu(false)}>
+        <Modal title={t('killWhoTitle')} onClose={() => setShowKillMenu(false)}>
           {livingTargets.length === 0 ? (
-            <p style={{ color: 'var(--color-text-dim)', padding: '8px 0' }}>No targets nearby.</p>
+            <p style={{ color: 'var(--color-text-dim)', padding: '8px 0' }}>{t('noTargets')}</p>
           ) : (
             livingTargets.map(p => (
               <button key={p.id} className="btn btn-red modal-player-btn" onClick={() => selectKillTarget(p)}>
@@ -196,29 +190,29 @@ export default function GameScreen() {
         </Modal>
       )}
 
-      {/* Step 2: confirm kill */}
+      {/* Kill confirm */}
       {pendingKillTarget && (
-        <Modal title="Confirm Kill" onClose={() => setPendingKillTarget(null)}>
-          <p className="confirm-msg">Kill <strong>{pendingKillTarget.name}</strong>?</p>
+        <Modal title={t('confirmKillTitle')} onClose={() => setPendingKillTarget(null)}>
+          <p className="confirm-msg">{t('killConfirmMsg', pendingKillTarget.name)}</p>
           <button className="btn btn-red modal-player-btn" onClick={confirmKill}>
-            Confirm Kill
+            {t('confirmKillTitle')}
           </button>
           <button className="btn btn-ghost modal-player-btn" onClick={() => setPendingKillTarget(null)}>
-            Cancel
+            {t('cancel')}
           </button>
         </Modal>
       )}
 
       {/* End game confirmation */}
       {showEndConfirm && (
-        <Modal title="End Game?" onClose={() => setShowEndConfirm(false)}>
-          <p style={{ color: 'var(--color-text-dim)', marginBottom: '8px' }}>End the game early?</p>
-          <button className="btn btn-red" onClick={endGame}>End Game</button>
-          <button className="btn btn-ghost" onClick={() => setShowEndConfirm(false)}>Cancel</button>
+        <Modal title={t('endGameTitle')} onClose={() => setShowEndConfirm(false)}>
+          <p style={{ color: 'var(--color-text-dim)', marginBottom: '8px' }}>{t('endGameConfirm')}</p>
+          <button className="btn btn-red" onClick={endGame}>{t('endGameBtn')}</button>
+          <button className="btn btn-ghost" onClick={() => setShowEndConfirm(false)}>{t('cancel')}</button>
         </Modal>
       )}
 
-      {/* Sabotage menu (imposter only) */}
+      {/* Sabotage menu */}
       {showSabotageMenu && (
         <SabotageMenu
           rooms={rooms}
@@ -244,7 +238,7 @@ export default function GameScreen() {
         </div>
       )}
 
-      {/* Lockdown / room lock notification (all non-imposter players) */}
+      {/* Lockdown / room lock notification */}
       <LockdownNotification
         notification={pendingLockNotification}
         onDismiss={() => dispatch({ type: 'DISMISS_LOCK_NOTIFICATION' })}

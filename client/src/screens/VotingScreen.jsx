@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
+import { useLanguage } from '../context/LanguageContext';
 import socket from '../socket';
 import { playVoteResults } from '../sounds';
 
 export default function VotingScreen() {
   const { state, dispatch } = useGame();
+  const { t } = useLanguage();
   const {
     players, myId, isAlive, gameCode,
     myVote, totalVotesIn, votes, ejectedPlayer, lastMeeting,
   } = state;
 
-  const [pendingVote, setPendingVote] = useState(null); // { id, name } or { id: 'skip', name: 'Skip' }
+  const [pendingVote, setPendingVote] = useState(null);
 
   const livingPlayers = players.filter(p => p.isAlive);
   const totalLiving = livingPlayers.length;
@@ -39,20 +41,20 @@ export default function VotingScreen() {
         {lastMeeting?.reason === 'body' ? (
           <div className="meeting-reason">
             <span className="meeting-icon">🔍</span>
-            <span>{lastMeeting.reporterName} found {lastMeeting.bodyName}'s body!</span>
+            <span>{t('foundBodyVote', lastMeeting.reporterName, lastMeeting.bodyName)}</span>
           </div>
         ) : (
           <div className="meeting-reason">
             <span className="meeting-icon">🚨</span>
-            <span>{lastMeeting?.reporterName} called an emergency meeting!</span>
+            <span>{t('calledEmergencyVote', lastMeeting?.reporterName)}</span>
           </div>
         )}
-        <h2>Who is the Imposter?</h2>
-        <div className="vote-progress">{totalVotesIn}/{totalLiving} voted</div>
+        <h2>{t('whoIsImposter')}</h2>
+        <div className="vote-progress">{t('votedCount', totalVotesIn, totalLiving)}</div>
       </div>
 
       {!isAlive && (
-        <div className="dead-vote-notice">👻 Dead players cannot vote</div>
+        <div className="dead-vote-notice">{t('deadCannotVote')}</div>
       )}
 
       <div className="vote-grid">
@@ -72,7 +74,7 @@ export default function VotingScreen() {
             </div>
             <div className="vote-name">
               {p.name}
-              {p.id === myId && ' (you)'}
+              {p.id === myId && t('youSuffix')}
             </div>
             {myVote === p.id && <div className="vote-check">✓</div>}
           </button>
@@ -84,33 +86,32 @@ export default function VotingScreen() {
             ${myVote && myVote !== 'skip' ? 'dimmed' : ''}
             ${pendingVote?.id === 'skip' ? 'pending' : ''}
             ${!isAlive || myVote ? 'no-interact' : ''}`}
-          onClick={() => selectVote('skip', 'Skip')}
+          onClick={() => selectVote('skip', t('skip'))}
           disabled={!isAlive || !!myVote}
         >
           <div className="vote-avatar skip-avatar">⏭</div>
-          <div className="vote-name">Skip</div>
+          <div className="vote-name">{t('skip')}</div>
           {myVote === 'skip' && <div className="vote-check">✓</div>}
         </button>
       </div>
 
       {myVote && !pendingVote && (
         <div className="voted-notice">
-          Vote cast! Waiting for others ({totalVotesIn}/{totalLiving})…
+          {t('voteCastMsg', totalVotesIn, totalLiving)}
         </div>
       )}
 
-      {/* Vote confirmation bar */}
       {pendingVote && !myVote && (
         <div className="vote-confirm-bar">
           <span className="vote-confirm-label">
-            Vote for <strong>{pendingVote.name}</strong>?
+            <strong>{t('voteForMsg', pendingVote.name)}</strong>
           </span>
           <div className="vote-confirm-actions">
             <button className="btn btn-ghost btn-small" onClick={() => setPendingVote(null)}>
-              Cancel
+              {t('cancel')}
             </button>
             <button className="btn btn-red btn-small" onClick={confirmVote}>
-              Confirm
+              {t('confirm')}
             </button>
           </div>
         </div>
@@ -120,6 +121,7 @@ export default function VotingScreen() {
 }
 
 function ResultsOverlay({ ejected, votes, players }) {
+  const { t } = useLanguage();
   useEffect(() => { playVoteResults(); }, []);
   const playerMap = Object.fromEntries(players.map(p => [p.id, p.name]));
 
@@ -131,16 +133,16 @@ function ResultsOverlay({ ejected, votes, players }) {
             <div className="ejected-animation">
               <div className="ejected-icon">🚀</div>
             </div>
-            <h2 className="ejected-name">{ejected.name} was ejected.</h2>
+            <h2 className="ejected-name">{t('wasEjected', ejected.name)}</h2>
             <p className={`ejected-result ${ejected.wasImposter ? 'correct' : 'wrong'}`}>
-              {ejected.wasImposter ? '✓ They were the Imposter.' : '✗ They were not the Imposter.'}
+              {ejected.wasImposter ? t('wasImposterCorrect') : t('wasNotImposter')}
             </p>
           </>
         ) : (
           <>
             <div className="no-eject-icon">🤷</div>
-            <h2>No one was ejected.</h2>
-            <p className="ejected-result">The vote was tied or skipped.</p>
+            <h2>{t('noOneEjected')}</h2>
+            <p className="ejected-result">{t('voteTied')}</p>
           </>
         )}
 
@@ -149,14 +151,14 @@ function ResultsOverlay({ ejected, votes, players }) {
             <div key={voterId} className="vote-row">
               <span>{playerMap[voterId] || voterId}</span>
               <span>→</span>
-              <span>{targetId === 'skip' ? 'Skip' : (playerMap[targetId] || targetId)}</span>
+              <span>{targetId === 'skip' ? t('skip') : (playerMap[targetId] || targetId)}</span>
             </div>
           ))}
         </div>
 
         <div className="results-waiting">
           <div className="spinner" />
-          Resuming game…
+          {t('resumingGame')}
         </div>
       </div>
     </div>

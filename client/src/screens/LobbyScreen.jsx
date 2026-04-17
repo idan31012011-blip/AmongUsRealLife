@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { useLanguage } from '../context/LanguageContext';
 import socket from '../socket';
 import { QRCodeSVG } from 'qrcode.react';
 import SettingsPanel from '../components/SettingsPanel';
 
 export default function LobbyScreen() {
   const { state } = useGame();
+  const { t } = useLanguage();
   const { gameCode, players, isManager, myId, rooms, settings } = state;
   const [copied, setCopied] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -34,19 +36,21 @@ export default function LobbyScreen() {
     socket.emit('kick_player', { code: gameCode, targetId: playerId });
   }
 
+  const need = 3 - activePlayers.length;
+
   return (
     <div className="screen lobby-screen">
       <div className="lobby-header">
-        <h2>Waiting Room</h2>
+        <h2>{t('waitingRoom')}</h2>
         <div className="code-block" onClick={copyCode}>
-          <span className="code-label">Game Code</span>
+          <span className="code-label">{t('gameCodeLabel')}</span>
           <span className="code-value">{gameCode}</span>
-          <span className="code-hint">{copied ? 'Copied!' : 'Tap to copy link'}</span>
+          <span className="code-hint">{copied ? t('copied') : t('tapToCopy')}</span>
         </div>
 
         {isManager && (
           <div className="qr-block">
-            <p className="qr-label">Scan to join</p>
+            <p className="qr-label">{t('scanToJoin')}</p>
             <QRCodeSVG
               value={`${window.location.origin}/?join=${gameCode}`}
               size={160}
@@ -61,18 +65,18 @@ export default function LobbyScreen() {
           className="btn btn-ghost btn-small lobby-settings-btn"
           onClick={() => setShowSettings(true)}
         >
-          ⚙ {isManager ? 'Edit Settings' : 'View Settings'}
+          {isManager ? t('editSettings') : t('viewSettings')}
         </button>
       </div>
 
       <div className="lobby-rooms card">
-        <span className="label">Rooms: </span>
+        <span className="label">{t('roomsLabel')} </span>
         <span className="rooms-list">{rooms.join(' · ')}</span>
       </div>
 
       <div className="player-list-header">
-        <span className="label">Players ({activePlayers.length})</span>
-        <span className="label-dim">Need 3+ to start</span>
+        <span className="label">{t('playersLabel', activePlayers.length)}</span>
+        <span className="label-dim">{t('need3ToStart')}</span>
       </div>
 
       <div className="player-list">
@@ -81,10 +85,10 @@ export default function LobbyScreen() {
             <div className="player-dot" style={{ background: stringToColor(p.name) }} />
             <span className="player-name">
               {p.name}
-              {p.id === myId && ' (you)'}
+              {p.id === myId && t('youSuffix')}
               {p.disconnected && ' 📵'}
             </span>
-            {p.id === state.managerId && <span className="badge">Host</span>}
+            {p.id === state.managerId && <span className="badge">{t('hostBadge')}</span>}
             {isManager && p.id !== myId && (
               <button
                 className="btn-kick"
@@ -105,12 +109,12 @@ export default function LobbyScreen() {
             onClick={startGame}
             disabled={!canStart}
           >
-            {canStart ? 'Start Game' : `Need ${3 - activePlayers.length} more player${3 - activePlayers.length !== 1 ? 's' : ''}`}
+            {canStart ? t('startGame') : t('needMorePlayers', need)}
           </button>
         </div>
       ) : (
         <div className="lobby-footer">
-          <p className="waiting-text">Waiting for the host to start…</p>
+          <p className="waiting-text">{t('waitingForHost')}</p>
         </div>
       )}
 

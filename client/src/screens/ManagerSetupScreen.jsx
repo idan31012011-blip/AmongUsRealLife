@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { useLanguage } from '../context/LanguageContext';
 import socket from '../socket';
-
-const DEFAULT_ROOMS = ['Kitchen', 'Living Room', 'Bedroom', 'Garage'];
 
 export default function ManagerSetupScreen() {
   const { dispatch } = useGame();
+  const { t } = useLanguage();
+  const defaultRooms = t('defaultRooms');
   const [rooms, setRooms] = useState(['', '', '']);
   const [managerName, setManagerName] = useState('');
   const [useDefaults, setUseDefaults] = useState(false);
@@ -28,15 +29,15 @@ export default function ManagerSetupScreen() {
   function handleCreate(e) {
     e.preventDefault();
     const finalRooms = useDefaults
-      ? DEFAULT_ROOMS
+      ? defaultRooms
       : rooms.map(r => r.trim()).filter(r => r.length > 0);
 
     if (finalRooms.length < 2) {
-      alert('Enter at least 2 room names.');
+      alert(t('enterAtLeast2Rooms') || 'Enter at least 2 room names.');
       return;
     }
     if (!managerName.trim()) {
-      alert('Enter your name.');
+      alert(t('enterYourName') || 'Enter your name.');
       return;
     }
 
@@ -45,8 +46,6 @@ export default function ManagerSetupScreen() {
     dispatch({ type: 'SET_MY_NAME', name });
 
     socket.emit('create_game', { rooms: finalRooms });
-    // After game is created, server sends game_created → GAME_CREATED dispatch
-    // Then manager needs to join their own game
     socket.once('game_created', ({ code }) => {
       localStorage.setItem('gameCode', code);
       socket.emit('join_game', { code, name });
@@ -57,15 +56,15 @@ export default function ManagerSetupScreen() {
     <div className="screen scrollable-screen">
       <div className="screen-header">
         <button className="btn-icon" onClick={() => dispatch({ type: 'RESET_TO_HOME' })}>←</button>
-        <h2>Create Game</h2>
+        <h2>{t('createGame')}</h2>
       </div>
 
       <form className="setup-form" onSubmit={handleCreate}>
         <div className="card">
-          <label className="label">Your Name</label>
+          <label className="label">{t('yourNameLabel')}</label>
           <input
             className="input"
-            placeholder="Enter your name"
+            placeholder={t('enterYourName')}
             value={managerName}
             onChange={e => setManagerName(e.target.value)}
             maxLength={20}
@@ -75,19 +74,19 @@ export default function ManagerSetupScreen() {
 
         <div className="card">
           <div className="section-header">
-            <label className="label">Room Names</label>
+            <label className="label">{t('roomNames')}</label>
             <button
               type="button"
               className="btn-text"
               onClick={() => setUseDefaults(d => !d)}
             >
-              {useDefaults ? 'Custom' : 'Use Defaults'}
+              {useDefaults ? t('custom') : t('useDefaults')}
             </button>
           </div>
 
           {useDefaults ? (
             <div className="room-list-preview">
-              {DEFAULT_ROOMS.map(r => (
+              {defaultRooms.map(r => (
                 <div key={r} className="room-chip">{r}</div>
               ))}
             </div>
@@ -97,7 +96,7 @@ export default function ManagerSetupScreen() {
                 <div key={i} className="room-row">
                   <input
                     className="input"
-                    placeholder={`Room ${i + 1}`}
+                    placeholder={t('roomPlaceholder', i + 1)}
                     value={room}
                     onChange={e => setRoom(i, e.target.value)}
                     maxLength={30}
@@ -109,7 +108,7 @@ export default function ManagerSetupScreen() {
               ))}
               {rooms.length < 10 && (
                 <button type="button" className="btn btn-ghost btn-small" onClick={addRoom}>
-                  + Add Room
+                  {t('addRoom')}
                 </button>
               )}
             </>
@@ -117,7 +116,7 @@ export default function ManagerSetupScreen() {
         </div>
 
         <button className="btn btn-red btn-large" type="submit">
-          Create Game
+          {t('createGame')}
         </button>
       </form>
     </div>

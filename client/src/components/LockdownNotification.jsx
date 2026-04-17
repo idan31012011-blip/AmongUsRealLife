@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import Modal from './Modal';
 import { playRoomLock } from '../sounds';
 
-// Ticking countdown for the global lockdown overlay
 function LockdownCountdown({ expiresAt }) {
   const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
 
@@ -18,8 +18,8 @@ function LockdownCountdown({ expiresAt }) {
   return <div className="lockdown-countdown">{secs}</div>;
 }
 
-// Ticking countdown for the room lock modal
 function RoomLockCountdown({ expiresAt }) {
+  const { t } = useLanguage();
   const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
 
   useEffect(() => {
@@ -31,50 +31,51 @@ function RoomLockCountdown({ expiresAt }) {
     return () => clearInterval(tick);
   }, [expiresAt]);
 
-  return <span>Unlocks in {secs}s</span>;
+  return <span>{t('unlocksIn', secs)}</span>;
 }
 
 export default function LockdownNotification({ notification, onDismiss }) {
-  // Play room lock sound once on mount for room-type notifications
+  const { t } = useLanguage();
+
   useEffect(() => {
     if (notification?.type === 'room') {
       playRoomLock();
     }
-    // Global lockdown sound is triggered in GameContext socket listener, not here
-  }, [notification?.type, notification?.roomName]); // re-trigger if a new room gets locked
+  }, [notification?.type, notification?.roomName]);
 
   if (!notification) return null;
 
-  // ── Global lockdown — full-screen overlay ─────────────────────────────────
   if (notification.type === 'global') {
+    const lines = t('lockdownSubtitle').split('\n');
     return (
       <div className="lockdown-overlay">
         <div className="lockdown-icon">🔒</div>
-        <div className="lockdown-title">GLOBAL LOCKDOWN</div>
+        <div className="lockdown-title">{t('globalLockdownTitle')}</div>
         <LockdownCountdown expiresAt={notification.expiresAt} />
         <div className="lockdown-subtitle">
-          All rooms are locked.{'\n'}Emergency meetings are disabled.
+          {lines.map((line, i) => (
+            <span key={i}>{line}{i < lines.length - 1 && <br />}</span>
+          ))}
         </div>
         <button className="lockdown-dismiss-btn" onClick={onDismiss}>
-          UNDERSTOOD
+          {t('understood')}
         </button>
       </div>
     );
   }
 
-  // ── Room lock — bottom-sheet modal ────────────────────────────────────────
   return (
-    <Modal title="Room Locked" onClose={onDismiss}>
+    <Modal title={t('roomLockedModalTitle')} onClose={onDismiss}>
       <div className="room-lock-content">
         <div className="room-lock-icon">🔒</div>
         <div className="room-lock-message">
-          <span>{notification.roomName}</span> is now LOCKED!
+          <span>{notification.roomName}</span> {t('roomLockedSuffix')}
         </div>
         <div className="room-lock-countdown">
           <RoomLockCountdown expiresAt={notification.expiresAt} />
         </div>
         <button className="btn btn-ghost btn-large" onClick={onDismiss}>
-          Got it
+          {t('gotIt')}
         </button>
       </div>
     </Modal>

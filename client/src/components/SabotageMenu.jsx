@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import Modal from './Modal';
 import socket from '../socket';
 
-// Mini SVG cooldown ring — same approach as KillButton
 function CooldownRing({ cooldownUntil, totalDuration, size = 44 }) {
   const [remaining, setRemaining] = useState(() => Math.max(0, cooldownUntil - Date.now()));
 
@@ -24,10 +24,7 @@ function CooldownRing({ cooldownUntil, totalDuration, size = 44 }) {
   return (
     <div className="cooldown-ring-wrap" style={{ width: size, height: size }}>
       <svg className="cooldown-ring-svg" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle
-          cx={size / 2} cy={size / 2} r={r}
-          fill="none" stroke="var(--color-border)" strokeWidth="3"
-        />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-border)" strokeWidth="3" />
         <circle
           cx={size / 2} cy={size / 2} r={r}
           fill="none" stroke="var(--color-text-dim)" strokeWidth="3"
@@ -42,7 +39,6 @@ function CooldownRing({ cooldownUntil, totalDuration, size = 44 }) {
   );
 }
 
-// Countdown text for active locked rooms
 function LockCountdown({ expiresAt }) {
   const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
 
@@ -58,7 +54,6 @@ function LockCountdown({ expiresAt }) {
   return <span className="sabotage-countdown">{secs}s</span>;
 }
 
-// Global lockdown countdown text
 function GlobalCountdown({ expiresAt }) {
   const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
 
@@ -75,6 +70,7 @@ function GlobalCountdown({ expiresAt }) {
 }
 
 export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onClose }) {
+  const { t } = useLanguage();
   const {
     lockedRooms,
     roomLockCooldowns,
@@ -84,8 +80,6 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
     globalLockdownUsesLeft,
   } = sabotage;
 
-  // Re-render every second so cooldown checks (Date.now() < cooldownUntil)
-  // stay accurate and buttons reappear as soon as cooldowns expire.
   const [, tick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => tick(n => n + 1), 1000);
@@ -101,13 +95,12 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
   }
 
   return (
-    <Modal title="Sabotage" onClose={onClose}>
+    <Modal title={t('sabotageBtn')} onClose={onClose}>
       <div>
 
-        {/* ── Room Locking ──────────────────────────────────────────── */}
         {settings.roomLockingEnabled && (
           <>
-            <div className="settings-section-title">Room Locking</div>
+            <div className="settings-section-title">{t('roomLockingSection')}</div>
             {rooms.map(roomName => {
               const lockEntry = lockedRooms.find(r => r.roomName === roomName);
               const cooldownUntil = roomLockCooldowns[roomName] ?? 0;
@@ -121,7 +114,7 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
 
                   {isLocked ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className="sabotage-badge-locked">Locked</span>
+                      <span className="sabotage-badge-locked">{t('lockedBadge')}</span>
                       <LockCountdown expiresAt={lockEntry.expiresAt} />
                     </div>
                   ) : onCooldown ? (
@@ -137,7 +130,7 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
                       disabled={atMax}
                       style={{ opacity: atMax ? 0.4 : 1 }}
                     >
-                      Lock
+                      {t('lockBtn')}
                     </button>
                   )}
                 </div>
@@ -145,35 +138,34 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
             })}
             {lockedRooms.length >= settings.maxLockedRooms && (
               <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8, textAlign: 'center' }}>
-                Max {settings.maxLockedRooms} rooms locked at once
+                {t('maxRoomsMsg', settings.maxLockedRooms)}
               </p>
             )}
           </>
         )}
 
-        {/* ── Global Lockdown ───────────────────────────────────────── */}
         {settings.globalLockdownEnabled && (
           <div className="sabotage-global-section">
             <div className="settings-section-title" style={{ margin: 0, border: 'none' }}>
-              Global Lockdown
+              {t('globalLockdownSection')}
             </div>
 
             <p className="sabotage-uses">
-              Uses: {globalLockdownUsesLeft} / {settings.maxGlobalLockdowns}
+              {t('usesLeftMsg', globalLockdownUsesLeft, settings.maxGlobalLockdowns)}
             </p>
 
             {globalLockdownActive ? (
               <>
-                <span className="sabotage-active-badge">⚡ ACTIVE</span>
+                <span className="sabotage-active-badge">{t('activeBadge')}</span>
                 <GlobalCountdown expiresAt={globalLockdownExpiresAt} />
               </>
             ) : globalLockdownUsesLeft <= 0 ? (
               <button className="btn btn-red btn-large" disabled style={{ opacity: 0.3 }}>
-                No Uses Left
+                {t('noUsesLeft')}
               </button>
             ) : Date.now() < globalLockdownCooldownUntil ? (
               <>
-                <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Cooldown</p>
+                <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{t('cooldownLabel')}</p>
                 <CooldownRing
                   cooldownUntil={globalLockdownCooldownUntil}
                   totalDuration={settings.globalLockdownCooldown}
@@ -182,7 +174,7 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
               </>
             ) : (
               <button className="btn btn-red btn-large" onClick={triggerLockdown}>
-                🔒 Global Lockdown
+                {t('globalLockdownBtn')}
               </button>
             )}
           </div>

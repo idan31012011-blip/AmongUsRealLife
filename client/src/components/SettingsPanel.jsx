@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import Modal from './Modal';
 import socket from '../socket';
 
@@ -22,7 +23,7 @@ function SettingsRow({ label, defaultLabel, children }) {
     <div className="settings-row">
       <div className="settings-label">
         {label}
-        <span className="settings-sublabel">Default: {defaultLabel}</span>
+        <span className="settings-sublabel">{defaultLabel}</span>
       </div>
       {children}
     </div>
@@ -49,8 +50,9 @@ function NumInput({ value, onChange, min, max, unit = 's', disabled }) {
 }
 
 function Toggle({ checked, onChange, disabled }) {
+  const { t } = useLanguage();
   if (disabled) {
-    return <span className="settings-value">{checked ? 'On' : 'Off'}</span>;
+    return <span className="settings-value">{checked ? t('defaultOn') : t('defaultOff')}</span>;
   }
   return (
     <label className="settings-toggle">
@@ -65,6 +67,8 @@ function Toggle({ checked, onChange, disabled }) {
 }
 
 export default function SettingsPanel({ isManager, settings, rooms, gameCode, onClose }) {
+  const { t } = useLanguage();
+
   const [local, setLocal] = useState({
     killCooldown: toSec(settings.killCooldown),
     taskHoldDuration: toSec(settings.taskHoldDuration),
@@ -85,7 +89,6 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
   const roomsDebounceRef = useRef(null);
   const isMounted = useRef(false);
 
-  // Sync local state when server confirms updated settings (skip initial mount)
   useEffect(() => {
     if (!isMounted.current) {
       isMounted.current = true;
@@ -106,8 +109,8 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
       maxGlobalLockdowns: settings.maxGlobalLockdowns,
     });
     setSaved(true);
-    const t = setTimeout(() => setSaved(false), 1500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setSaved(false), 1500);
+    return () => clearTimeout(timer);
   }, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function set(key, value) {
@@ -165,83 +168,83 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
     });
   }
 
-  const ro = !isManager; // read-only
+  const ro = !isManager;
 
   return (
-    <Modal title={isManager ? 'Edit Settings' : 'Game Settings'} onClose={onClose}>
+    <Modal title={isManager ? t('settingsEditTitle') : t('settingsViewTitle')} onClose={onClose}>
       <div className="settings-panel">
 
         {/* ── Timing ──────────────────────────────────────────────────── */}
-        <div className="settings-section-title">Timing</div>
+        <div className="settings-section-title">{t('settingsTiming')}</div>
 
-        <SettingsRow label="Kill cooldown" defaultLabel={`${DEFAULTS_SEC.killCooldown}s`}>
+        <SettingsRow label={t('killCooldownLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.killCooldown}s`)}>
           <NumInput value={local.killCooldown} onChange={v => set('killCooldown', v)}
             min={5} max={120} disabled={ro} />
         </SettingsRow>
 
-        <SettingsRow label="Task timer (alive)" defaultLabel={`${DEFAULTS_SEC.taskHoldDuration}s`}>
+        <SettingsRow label={t('taskTimerAlive')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.taskHoldDuration}s`)}>
           <NumInput value={local.taskHoldDuration} onChange={v => set('taskHoldDuration', v)}
             min={5} max={60} disabled={ro} />
         </SettingsRow>
 
-        <SettingsRow label="Task timer (dead)" defaultLabel={`${DEFAULTS_SEC.deadTaskHoldDuration}s`}>
+        <SettingsRow label={t('taskTimerDead')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.deadTaskHoldDuration}s`)}>
           <NumInput value={local.deadTaskHoldDuration} onChange={v => set('deadTaskHoldDuration', v)}
             min={5} max={60} disabled={ro} />
         </SettingsRow>
 
         {/* ── Sabotage ────────────────────────────────────────────────── */}
-        <div className="settings-section-title" style={{ marginTop: 20 }}>Sabotage</div>
+        <div className="settings-section-title" style={{ marginTop: 20 }}>{t('settingsSabotage')}</div>
 
-        <SettingsRow label="Sabotage system enabled" defaultLabel="Off">
+        <SettingsRow label={t('sabotageEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOff'))}>
           <Toggle checked={local.sabotageEnabled} onChange={v => set('sabotageEnabled', v)} disabled={ro} />
         </SettingsRow>
 
         {local.sabotageEnabled && (
           <>
-            <div className="settings-subsection-title">Room Locking</div>
+            <div className="settings-subsection-title">{t('roomLockingLabel')}</div>
 
-            <SettingsRow label="Room locking enabled" defaultLabel="On">
+            <SettingsRow label={t('roomLockingEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOn'))}>
               <Toggle checked={local.roomLockingEnabled} onChange={v => set('roomLockingEnabled', v)} disabled={ro} />
             </SettingsRow>
 
             {local.roomLockingEnabled && (
               <>
-                <SettingsRow label="Max rooms locked at once" defaultLabel={String(DEFAULTS_SEC.maxLockedRooms)}>
+                <SettingsRow label={t('maxLockedRoomsLabel')} defaultLabel={t('defaultPrefix', String(DEFAULTS_SEC.maxLockedRooms))}>
                   <NumInput value={local.maxLockedRooms} onChange={v => set('maxLockedRooms', v)}
                     min={1} max={5} unit="" disabled={ro} />
                 </SettingsRow>
 
-                <SettingsRow label="Room lock duration" defaultLabel={`${DEFAULTS_SEC.roomLockDuration}s`}>
+                <SettingsRow label={t('roomLockDurationLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.roomLockDuration}s`)}>
                   <NumInput value={local.roomLockDuration} onChange={v => set('roomLockDuration', v)}
                     min={5} max={120} disabled={ro} />
                 </SettingsRow>
 
-                <SettingsRow label="Room lock cooldown (per room)" defaultLabel={`${DEFAULTS_SEC.roomLockCooldown}s`}>
+                <SettingsRow label={t('roomLockCooldownLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.roomLockCooldown}s`)}>
                   <NumInput value={local.roomLockCooldown} onChange={v => set('roomLockCooldown', v)}
                     min={10} max={300} disabled={ro} />
                 </SettingsRow>
               </>
             )}
 
-            <div className="settings-subsection-title">Global Lockdown</div>
+            <div className="settings-subsection-title">{t('globalLockdownLabel')}</div>
 
-            <SettingsRow label="Global lockdown enabled" defaultLabel="On">
+            <SettingsRow label={t('globalLockdownEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOn'))}>
               <Toggle checked={local.globalLockdownEnabled} onChange={v => set('globalLockdownEnabled', v)} disabled={ro} />
             </SettingsRow>
 
             {local.globalLockdownEnabled && (
               <>
-                <SettingsRow label="Global lockdown duration" defaultLabel={`${DEFAULTS_SEC.globalLockdownDuration}s`}>
+                <SettingsRow label={t('globalLockdownDurationLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.globalLockdownDuration}s`)}>
                   <NumInput value={local.globalLockdownDuration} onChange={v => set('globalLockdownDuration', v)}
                     min={10} max={120} disabled={ro} />
                 </SettingsRow>
 
-                <SettingsRow label="Global lockdown cooldown" defaultLabel={`${DEFAULTS_SEC.globalLockdownCooldown}s`}>
+                <SettingsRow label={t('globalLockdownCooldownLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.globalLockdownCooldown}s`)}>
                   <NumInput value={local.globalLockdownCooldown} onChange={v => set('globalLockdownCooldown', v)}
                     min={30} max={600} disabled={ro} />
                 </SettingsRow>
 
-                <SettingsRow label="Max global lockdowns per game" defaultLabel={String(DEFAULTS_SEC.maxGlobalLockdowns)}>
+                <SettingsRow label={t('maxGlobalLockdownsLabel')} defaultLabel={t('defaultPrefix', String(DEFAULTS_SEC.maxGlobalLockdowns))}>
                   <NumInput value={local.maxGlobalLockdowns} onChange={v => set('maxGlobalLockdowns', v)}
                     min={1} max={5} unit="" disabled={ro} />
                 </SettingsRow>
@@ -252,12 +255,12 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
 
         {isManager && (
           <button className="btn btn-blue btn-block settings-save-btn" onClick={handleSaveSettings} disabled={saved}>
-            {saved ? 'Saved!' : 'Save Settings'}
+            {saved ? t('savedSettings') : t('saveSettings')}
           </button>
         )}
 
         {/* ── Rooms ───────────────────────────────────────────────────── */}
-        <div className="settings-section-title" style={{ marginTop: 20 }}>Rooms</div>
+        <div className="settings-section-title" style={{ marginTop: 20 }}>{t('settingsRoomsSection')}</div>
 
         {isManager ? (
           <>
@@ -265,7 +268,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
               <div key={i} className="room-row">
                 <input
                   className="input"
-                  placeholder={`Room ${i + 1}`}
+                  placeholder={t('settingsRoomPlaceholder', i + 1)}
                   value={room}
                   onChange={e => setRoom(i, e.target.value)}
                   maxLength={30}
@@ -277,11 +280,11 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
             ))}
             {localRooms.length < 10 && (
               <button type="button" className="btn btn-ghost btn-small" onClick={addRoom} style={{ marginTop: 8 }}>
-                + Add Room
+                {t('settingsAddRoom')}
               </button>
             )}
             <p className="settings-sublabel" style={{ marginTop: 8, textAlign: 'center' }}>
-              Room changes save automatically
+              {t('roomsAutoSave')}
             </p>
           </>
         ) : (

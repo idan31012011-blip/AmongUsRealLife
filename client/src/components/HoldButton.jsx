@@ -1,19 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import socket from '../socket';
 
-/**
- * Hold-to-complete button with a circular progress ring.
- * Props:
- *   taskId, gameCode, duration (ms), disabled, completed,
- *   onHoldStart(), onHoldEnd()  — callbacks for one-at-a-time enforcement in TaskList
- */
 export default function HoldButton({ taskId, gameCode, duration, disabled, completed, onHoldStart, onHoldEnd }) {
-  const [progress, setProgress] = useState(0); // 0–100
+  const { t } = useLanguage();
+  const [progress, setProgress] = useState(0);
   const [holding, setHolding] = useState(false);
   const intervalRef = useRef(null);
   const startTimeRef = useRef(null);
 
-  // Clean up on unmount (e.g. meeting called mid-hold)
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
@@ -68,7 +63,7 @@ export default function HoldButton({ taskId, gameCode, duration, disabled, compl
     }
   }
 
-  const circumference = 2 * Math.PI * 26; // radius 26
+  const circumference = 2 * Math.PI * 26;
   const strokeOffset = circumference * (1 - progress / 100);
   const seconds = holding ? Math.ceil((duration * (1 - progress / 100)) / 1000) : Math.ceil(duration / 1000);
 
@@ -103,7 +98,7 @@ export default function HoldButton({ taskId, gameCode, duration, disabled, compl
         ) : holding ? (
           <span className="hold-countdown">{seconds}s</span>
         ) : (
-          <span className="hold-label-text">Hold</span>
+          <span className="hold-label-text">{t('hold')}</span>
         )}
       </div>
     </button>
