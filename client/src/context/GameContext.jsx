@@ -63,6 +63,16 @@ const initialState = {
 };
 
 function reducer(state, action) {
+  // Station devices must not be knocked out of the 'station' phase by game events
+  if (state.phase === 'station') {
+    if (['ALL_REVEALED', 'MEETING_CALLED', 'SHOW_VOTING', 'VOTING_ENDED', 'CONFIRM_DEATH_LOCAL'].includes(action.type)) {
+      if (action.taskProgressPercent !== undefined) {
+        return { ...state, taskProgressPercent: action.taskProgressPercent };
+      }
+      return state;
+    }
+  }
+
   switch (action.type) {
     case 'SET_MY_ID':
       return { ...state, myId: action.id };
