@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import HoldButton from './HoldButton';
 
-export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, deadDuration }) {
+export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, deadDuration, hideFakeBadge }) {
   const [activeTaskId, setActiveTaskId] = useState(null);
 
   if (!tasks || tasks.length === 0) {
@@ -17,7 +17,7 @@ export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, dead
           <div className="task-info">
             <div className="task-room">{task.room}</div>
             <div className="task-desc">{task.description}</div>
-            {task.isFake && <div className="task-fake-badge">Fake</div>}
+            {task.isFake && !hideFakeBadge && <div className="task-fake-badge">Fake</div>}
           </div>
           <HoldButton
             taskId={task.id}

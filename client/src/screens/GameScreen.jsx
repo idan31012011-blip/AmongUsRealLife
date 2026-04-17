@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import socket from '../socket';
 import TaskProgressBar from '../components/TaskProgressBar';
@@ -7,6 +7,34 @@ import KillButton from '../components/KillButton';
 import Modal from '../components/Modal';
 import SabotageMenu from '../components/SabotageMenu';
 import LockdownNotification from '../components/LockdownNotification';
+
+// Countdown for a locked room (shown on left side panel)
+function RoomLockTimer({ expiresAt }) {
+  const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
+  useEffect(() => {
+    const tick = setInterval(() => {
+      const s = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setSecs(s);
+      if (s <= 0) clearInterval(tick);
+    }, 250);
+    return () => clearInterval(tick);
+  }, [expiresAt]);
+  return <span className="locked-room-timer">{secs}s</span>;
+}
+
+// Countdown shown next to the Meeting button during global lockdown
+function GlobalLockTimer({ expiresAt }) {
+  const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
+  useEffect(() => {
+    const tick = setInterval(() => {
+      const s = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setSecs(s);
+      if (s <= 0) clearInterval(tick);
+    }, 250);
+    return () => clearInterval(tick);
+  }, [expiresAt]);
+  return <span className="btn-action-countdown">{secs}s</span>;
+}
 
 export default function GameScreen() {
   const { state, dispatch } = useGame();
@@ -100,6 +128,7 @@ export default function GameScreen() {
             isAlive={isAlive}
             aliveDuration={settings.taskHoldDuration}
             deadDuration={settings.deadTaskHoldDuration}
+            hideFakeBadge={disguised}
           />
         </div>
       )}
@@ -116,6 +145,9 @@ export default function GameScreen() {
           >
             <span className="btn-action-icon">{lockdownActive ? '🔒' : '🚨'}</span>
             <span className="btn-action-label">{lockdownActive ? 'Locked' : 'Meeting'}</span>
+            {lockdownActive && sabotage.globalLockdownExpiresAt && (
+              <GlobalLockTimer expiresAt={sabotage.globalLockdownExpiresAt} />
+            )}
           </button>
 
           {/* Sabotage button — imposter only, when sabotage is enabled */}
@@ -195,6 +227,21 @@ export default function GameScreen() {
           gameCode={gameCode}
           onClose={() => setShowSabotageMenu(false)}
         />
+      )}
+
+      {/* Locked rooms panel — left side, visible to all players */}
+      {sabotage.lockedRooms.length > 0 && (
+        <div className="locked-rooms-panel">
+          {sabotage.lockedRooms.map(({ roomName, expiresAt }) => (
+            <div key={roomName} className="locked-room-entry">
+              <span className="locked-room-icon">🔒</span>
+              <div className="locked-room-info">
+                <span className="locked-room-name">{roomName}</span>
+                <RoomLockTimer expiresAt={expiresAt} />
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Lockdown / room lock notification (all non-imposter players) */}

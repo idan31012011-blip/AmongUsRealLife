@@ -379,30 +379,25 @@ function registerHandlers(io, socket) {
       return socket.emit('error', { message: 'Kill on cooldown.' });
     }
 
-    // Start cooldown immediately on kill press, before victim confirms
     game.imposterKillCooldownUntil = now + game.settings.killCooldown;
     socket.emit('kill_cooldown_started', { cooldownUntil: game.imposterKillCooldownUntil });
 
-    // Show kill screen to victim only
+    // Kill is immediate — mark target dead right away
+    target.isAlive = false;
+
+    // Show kill screen to victim first, then broadcast death to everyone
     io.to(targetId).emit('kill_initiated', { victimId: targetId });
-  });
-
-  socket.on('confirm_death', ({ code } = {}) => {
-    const game = getGame(code);
-    if (!game) return;
-
-    const player = game.players.get(socket.id);
-    if (!player || !player.isAlive) return;
-
-    player.isAlive = false;
-
     io.to(code).emit('kill_confirmed', {
-      victimId: socket.id,
+      victimId: targetId,
       cooldownUntil: game.imposterKillCooldownUntil,
     });
 
     const result = checkWinConditions(game);
     if (result) endGame(io, game, result);
+  });
+
+  socket.on('confirm_death', () => {
+    // Death is now immediate on kill — this event is no longer used server-side
   });
 
   // ─── SABOTAGE ─────────────────────────────────────────────────────────────
@@ -774,6 +769,7 @@ function resolveVoting(io, game) {
   if (ejected) {
     ejected.isAlive = false;
     ejected.votedOut = true;
+    ejected.bodyFound = true; // Voted-out players can do tasks immediately after the meeting
     ejectedInfo = { id: ejected.id, name: ejected.name, wasImposter: ejected.role === 'imposter' };
   }
 
