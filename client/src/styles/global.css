@@ -2341,6 +2341,45 @@ input {
   display: block;
 }
 
+/* ── Report Body / Found Me (stations mode) ─────────────────────────────── */
+.btn-report-body .btn-action-icon { color: var(--color-red); }
+.btn-report-body:not(.btn-disabled) { animation: reportBodyPulse 1s ease-in-out infinite; }
+
+@keyframes reportBodyPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(232, 41, 74, 0); }
+  50%       { box-shadow: 0 0 12px rgba(232, 41, 74, 0.6); }
+}
+
+.found-me-bar {
+  padding: var(--space-md) var(--space-md) 0;
+  display: flex;
+  justify-content: center;
+}
+
+.found-me-btn {
+  width: 100%;
+  max-width: 320px;
+  font-size: 16px;
+  animation: reportBodyPulse 1.2s ease-in-out infinite;
+}
+
+/* Station meeting button */
+.station-meeting-btn {
+  width: 100%;
+  max-width: 280px;
+}
+
+/* Station meeting toggle in lobby */
+.station-meeting-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.station-meeting-toggle input { display: none; }
+.station-meeting-toggle-label { font-size: 14px; }
+
 /* ── RTL Adjustments (Hebrew) ────────────────────────────────────────────── */
 [dir="rtl"] .locked-rooms-panel {
   left: auto;

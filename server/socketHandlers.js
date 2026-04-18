@@ -287,6 +287,17 @@ function registerHandlers(io, socket) {
 
     game.stations.delete(playerId);
     game.stationRooms.delete(playerId);
+    game.stationMeetingEnabled.delete(playerId);
+    io.to(code).emit('stations_updated', { stations: buildStationList(game) });
+  });
+
+  socket.on('set_station_meeting', ({ code, playerId, hasMeeting } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'lobby') return socket.emit('error', { message: 'Can only change station settings in lobby.' });
+    if (socket.id !== game.managerId) return socket.emit('error', { message: 'Only the manager can change station settings.' });
+    if (!game.stations.has(playerId)) return socket.emit('error', { message: 'Player is not a station.' });
+    if (typeof hasMeeting !== 'boolean') return;
+    game.stationMeetingEnabled.set(playerId, hasMeeting);
     io.to(code).emit('stations_updated', { stations: buildStationList(game) });
   });
 
@@ -337,7 +348,10 @@ function registerHandlers(io, socket) {
     // Send each player their role and tasks privately
     for (const [id, player] of game.players) {
       if (player.role === 'station') {
-        io.to(id).emit('station_device_ready', { roomName: game.stationRooms.get(id) });
+        io.to(id).emit('station_device_ready', {
+          roomName: game.stationRooms.get(id),
+          hasMeeting: game.stationMeetingEnabled.get(id) ?? false,
+        });
       } else {
         io.to(id).emit('role_assigned', {
           role: player.role,
@@ -558,6 +572,21 @@ function registerHandlers(io, socket) {
       cooldownUntil: game.imposterKillCooldownUntil,
     });
 
+    // Open 10-second report window for impostor only (stations mode)
+    if (game.settings.stationsEnabled) {
+      if (game.bodyReportWindow?.timeoutId) clearTimeout(game.bodyReportWindow.timeoutId);
+      const windowExpiry = Date.now() + 10000;
+      const windowTimeout = setTimeout(() => {
+        const g = getGame(code);
+        if (g && g.bodyReportWindow?.imposterOnly) {
+          g.bodyReportWindow = null;
+          io.to(socket.id).emit('body_report_window_closed');
+        }
+      }, 10000);
+      game.bodyReportWindow = { bodyId: targetId, expiresAt: windowExpiry, imposterOnly: true, timeoutId: windowTimeout };
+      io.to(socket.id).emit('body_report_window_opened', { bodyId: targetId, expiresAt: windowExpiry });
+    }
+
     const result = checkWinConditions(game);
     if (result) endGame(io, game, result);
   });
@@ -668,6 +697,11 @@ function registerHandlers(io, socket) {
     const caller = game.players.get(socket.id);
     if (!caller || !caller.isAlive) return socket.emit('error', { message: 'Not allowed.' });
 
+    // When stations are enabled, emergency meetings must be called from a station
+    if (game.settings.stationsEnabled) {
+      return socket.emit('error', { message: 'Meetings must be called from a station.' });
+    }
+
     // Block emergency meetings during a global lockdown
     if (game.sabotage.globalLockdownActive) {
       return socket.emit('error', { message: 'Cannot call a meeting during a lockdown.' });
@@ -676,6 +710,77 @@ function registerHandlers(io, socket) {
     game.meetingHasOccurred = true;
 
     // Unlock all dead players whose bodies haven't been found
+    for (const p of game.players.values()) {
+      if (!p.isAlive) p.bodyFound = true;
+    }
+
+    startMeeting(io, game, { reason: 'emergency', reporterId: socket.id, bodyId: null });
+  });
+
+  socket.on('i_was_found', ({ code } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return;
+
+    const player = game.players.get(socket.id);
+    if (!player || player.isAlive) return;
+    if (game.stations.has(socket.id)) return;
+
+    // Block if any window is already active
+    if (game.bodyReportWindow && Date.now() < game.bodyReportWindow.expiresAt) return;
+
+    if (game.bodyReportWindow?.timeoutId) clearTimeout(game.bodyReportWindow.timeoutId);
+    const expiresAt = Date.now() + 5000;
+    const timeoutId = setTimeout(() => {
+      const g = getGame(code);
+      if (g) {
+        g.bodyReportWindow = null;
+        io.to(g.code).emit('body_report_window_closed');
+      }
+    }, 5000);
+    game.bodyReportWindow = { bodyId: socket.id, expiresAt, imposterOnly: false, timeoutId };
+
+    for (const [id, p] of game.players) {
+      if (p.isAlive && !game.stations.has(id)) {
+        io.to(id).emit('body_report_window_opened', { bodyId: socket.id, expiresAt });
+      }
+    }
+  });
+
+  socket.on('report_body_in_window', ({ code } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return socket.emit('error', { message: 'Cannot report now.' });
+
+    const reporter = game.players.get(socket.id);
+    if (!reporter || !reporter.isAlive) return socket.emit('error', { message: 'Not allowed.' });
+    if (game.stations.has(socket.id)) return socket.emit('error', { message: 'Not allowed.' });
+
+    const win = game.bodyReportWindow;
+    if (!win || Date.now() > win.expiresAt) {
+      return socket.emit('error', { message: 'No active report window.' });
+    }
+    if (win.imposterOnly && reporter.role !== 'imposter') {
+      return socket.emit('error', { message: 'No active report window.' });
+    }
+
+    clearTimeout(win.timeoutId);
+    game.bodyReportWindow = null;
+    io.to(code).emit('body_report_window_closed');
+
+    const body = game.players.get(win.bodyId);
+    if (body) body.bodyFound = true;
+
+    startMeeting(io, game, { reason: 'body', reporterId: socket.id, bodyId: win.bodyId });
+  });
+
+  socket.on('station_call_meeting', ({ code } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return socket.emit('error', { message: 'Cannot call meeting now.' });
+
+    if (!game.stations.has(socket.id)) return socket.emit('error', { message: 'Not allowed.' });
+    if (!(game.stationMeetingEnabled.get(socket.id) ?? false)) return socket.emit('error', { message: 'This station does not have meeting privileges.' });
+    if (game.sabotage.globalLockdownActive) return socket.emit('error', { message: 'Cannot call a meeting during a lockdown.' });
+
+    game.meetingHasOccurred = true;
     for (const p of game.players.values()) {
       if (!p.isAlive) p.bodyFound = true;
     }
@@ -737,6 +842,8 @@ function registerHandlers(io, socket) {
       clearTimeout(game.sabotage.globalLockdownTimeoutId);
     }
 
+    if (game.bodyReportWindow?.timeoutId) clearTimeout(game.bodyReportWindow.timeoutId);
+
     game.phase = 'lobby';
     game.tasks = new Map();
     game.taskHoldStartTimes = new Map();
@@ -749,8 +856,10 @@ function registerHandlers(io, socket) {
     game.meetingHasOccurred = false;
     game.stations = new Set();
     game.stationRooms = new Map();
+    game.stationMeetingEnabled = new Map();
     game.playerCodes = new Map();
     game.doctorId = null;
+    game.bodyReportWindow = null;
     game.sabotage = {
       lockedRooms: new Map(),
       roomLockCooldowns: new Map(),
@@ -807,6 +916,7 @@ function registerHandlers(io, socket) {
         if (stationRoom) revertStationTasks(io, game, stationRoom, getTaskDescription);
         game.stations.delete(socket.id);
         game.stationRooms.delete(socket.id);
+        game.stationMeetingEnabled.delete(socket.id);
         // Remove station player from players entirely — they don't reconnect as station
         game.players.delete(socket.id);
         return;
@@ -839,7 +949,12 @@ function buildStationList(game) {
   const list = [];
   for (const [playerId, roomName] of game.stationRooms) {
     const player = game.players.get(playerId);
-    list.push({ playerId, roomName, playerName: player?.name ?? '?' });
+    list.push({
+      playerId,
+      roomName,
+      playerName: player?.name ?? '?',
+      hasMeeting: game.stationMeetingEnabled.get(playerId) ?? false,
+    });
   }
   return list;
 }
@@ -929,6 +1044,9 @@ function canDoTask(player, game) {
 }
 
 function startMeeting(io, game, { reason, reporterId, bodyId }) {
+  if (game.bodyReportWindow?.timeoutId) clearTimeout(game.bodyReportWindow.timeoutId);
+  game.bodyReportWindow = null;
+
   game.phase = 'voting';
   game.votes = new Map();
   game.meetingHasOccurred = true;

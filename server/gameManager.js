@@ -21,10 +21,12 @@ function createGame({ managerId, rooms, settings }) {
     imposterKillCooldownUntil: 0,
     gameStartTime: 0,
     meetingHasOccurred: false,
-    stations: new Set(),        // Set<playerId> — station devices
-    stationRooms: new Map(),    // Map<playerId, roomName>
-    playerCodes: new Map(),     // Map<playerId, '3-digit string'>
-    doctorId: null,             // playerId of the doctor (sub-role)
+    stations: new Set(),              // Set<playerId> — station devices
+    stationRooms: new Map(),          // Map<playerId, roomName>
+    stationMeetingEnabled: new Map(), // Map<playerId, boolean>
+    playerCodes: new Map(),           // Map<playerId, '3-digit string'>
+    doctorId: null,                   // playerId of the doctor (sub-role)
+    bodyReportWindow: null,           // { bodyId, expiresAt, imposterOnly, timeoutId } | null
     settings: {
       killCooldown:           settings?.killCooldown           ?? 20000,
       taskHoldDuration:       settings?.taskHoldDuration       ?? 20000,

@@ -55,6 +55,8 @@ export const translations = {
     lockedDeadSub: 'You can complete your tasks once an emergency meeting is called.',
     meetingBtn: 'Meeting',
     lockedBtn: 'Locked',
+    reportBodyBtn: 'Report Body',
+    iWasFoundBtn: 'A player found me',
     sabotageBtn: 'Sabotage',
     killWhoTitle: 'Kill Who?',
     noTargets: 'No targets nearby.',
@@ -193,6 +195,8 @@ export const translations = {
     simonWrong: 'Wrong! Try again (faster)…',
     simonPlayingFor: (name) => `Playing for: ${name}`,
     stationDisconnectedNotice: (room) => `${room} station offline — task reverted`,
+    stationMeetingBtn: 'Call Meeting',
+    stationMeetingToggleLabel: 'Enable meeting button for this station',
 
     // Doctor
     settingsDoctor: 'Doctor',
@@ -263,6 +267,8 @@ export const translations = {
     lockedDeadSub: 'תוכל לבצע משימות לאחר שתיפתח אסיפת חירום.',
     meetingBtn: 'אסיפה',
     lockedBtn: 'נעול',
+    reportBodyBtn: 'דווח על גופה',
+    iWasFoundBtn: 'שחקן מצא אותי',
     sabotageBtn: 'חבלה',
     killWhoTitle: 'לחסל את מי?',
     noTargets: 'אין מטרות בסביבה.',
@@ -401,6 +407,8 @@ export const translations = {
     simonWrong: 'שגוי! נסה שנית (מהר יותר)…',
     simonPlayingFor: (name) => `משחק עבור: ${name}`,
     stationDisconnectedNotice: (room) => `עמדת ${room} התנתקה — משימה הוחזרה`,
+    stationMeetingBtn: 'קרא לאסיפה',
+    stationMeetingToggleLabel: 'הפעל כפתור אסיפה לעמדה זו',
 
     // Doctor
     settingsDoctor: 'רופא',

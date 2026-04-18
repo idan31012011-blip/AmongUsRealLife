@@ -7,7 +7,7 @@ import SimonSaysGame from './SimonSaysGame';
 export default function StationScreen() {
   const { state } = useGame();
   const { t } = useLanguage();
-  const { gameCode, stationRoom } = state;
+  const { gameCode, stationRoom, stationHasMeeting } = state;
 
   const [uiPhase, setUiPhase] = useState('idle'); // 'idle' | 'entry' | 'simon' | 'success' | 'already_done'
   const [enteredCode, setEnteredCode] = useState('');
@@ -66,9 +66,19 @@ export default function StationScreen() {
     socket.emit('station_task_complete', { code: gameCode, playerId: currentPlayerId });
   }
 
+  function callMeeting() {
+    socket.emit('station_call_meeting', { code: gameCode });
+  }
+
   return (
     <div className="screen station-screen">
       <div className="station-room-title">{t('stationScreenTitle', stationRoom ?? '?')}</div>
+
+      {stationHasMeeting && uiPhase === 'idle' && (
+        <button className="btn btn-red btn-large station-meeting-btn" onClick={callMeeting}>
+          🚨 {t('stationMeetingBtn')}
+        </button>
+      )}
 
       {uiPhase === 'simon' ? (
         <SimonSaysGame playerName={currentPlayerName} onSuccess={handleSimonSuccess} />

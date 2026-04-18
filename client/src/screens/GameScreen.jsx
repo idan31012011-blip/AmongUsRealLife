@@ -38,12 +38,27 @@ function GlobalLockTimer({ expiresAt }) {
   return <span className="btn-action-countdown">{secs}s</span>;
 }
 
+// Countdown shown on the Report Body button while window is open
+function ReportBodyTimer({ expiresAt }) {
+  const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
+  useEffect(() => {
+    const tick = setInterval(() => {
+      const s = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setSecs(s);
+      if (s <= 0) clearInterval(tick);
+    }, 250);
+    return () => clearInterval(tick);
+  }, [expiresAt]);
+  return <span className="btn-action-countdown">{secs}s</span>;
+}
+
 export default function GameScreen() {
   const { state, dispatch } = useGame();
   const { t } = useLanguage();
   const {
     myRole, isAlive, players, gameCode, taskProgressPercent, myId, isManager,
     settings, sabotage, pendingLockNotification, pendingStationNotice, rooms, isDoctor,
+    reportBodyWindowEnd,
   } = state;
 
   const [showKillMenu, setShowKillMenu] = useState(false);
@@ -73,6 +88,14 @@ export default function GameScreen() {
     socket.emit('call_emergency', { code: gameCode });
   }
 
+  function reportBodyInWindow() {
+    socket.emit('report_body_in_window', { code: gameCode });
+  }
+
+  function iWasFound() {
+    socket.emit('i_was_found', { code: gameCode });
+  }
+
   function endGame() {
     socket.emit('end_game', { code: gameCode });
     setShowEndConfirm(false);
@@ -84,6 +107,8 @@ export default function GameScreen() {
   const isLocked = isDead && !myPlayer?.bodyFound;
   const lockdownActive = sabotage.globalLockdownActive;
   const showAsImposter = isImposter && !disguised;
+  const stationsMode = settings.stationsEnabled;
+  const reportWindowActive = stationsMode && reportBodyWindowEnd != null && Date.now() < reportBodyWindowEnd;
 
   return (
     <div className={`screen game-screen ${isDead ? 'dead-screen' : ''}`}>
@@ -132,21 +157,42 @@ export default function GameScreen() {
         </div>
       )}
 
+      {/* Dead player "A player found me" button — stations mode only */}
+      {isDead && stationsMode && (
+        <div className="found-me-bar">
+          <button className="btn btn-red found-me-btn" onClick={iWasFound}>
+            {t('iWasFoundBtn')}
+          </button>
+        </div>
+      )}
+
       {/* Bottom action bar — living players only */}
       {!isDead && (
         <div className={`game-bottombar ${showAsImposter ? 'bar-imposter' : 'bar-crewmate'}`}>
 
-          <button
-            className={`btn-action btn-emergency ${lockdownActive ? 'btn-locked btn-disabled' : ''}`}
-            onClick={callEmergency}
-            disabled={lockdownActive}
-          >
-            <span className="btn-action-icon">{lockdownActive ? '🔒' : '🚨'}</span>
-            <span className="btn-action-label">{lockdownActive ? t('lockedBtn') : t('meetingBtn')}</span>
-            {lockdownActive && sabotage.globalLockdownExpiresAt && (
-              <GlobalLockTimer expiresAt={sabotage.globalLockdownExpiresAt} />
-            )}
-          </button>
+          {stationsMode ? (
+            <button
+              className={`btn-action btn-report-body ${!reportWindowActive ? 'btn-disabled' : ''}`}
+              onClick={reportBodyInWindow}
+              disabled={!reportWindowActive}
+            >
+              <span className="btn-action-icon">🔴</span>
+              <span className="btn-action-label">{t('reportBodyBtn')}</span>
+              {reportWindowActive && <ReportBodyTimer expiresAt={reportBodyWindowEnd} />}
+            </button>
+          ) : (
+            <button
+              className={`btn-action btn-emergency ${lockdownActive ? 'btn-locked btn-disabled' : ''}`}
+              onClick={callEmergency}
+              disabled={lockdownActive}
+            >
+              <span className="btn-action-icon">{lockdownActive ? '🔒' : '🚨'}</span>
+              <span className="btn-action-label">{lockdownActive ? t('lockedBtn') : t('meetingBtn')}</span>
+              {lockdownActive && sabotage.globalLockdownExpiresAt && (
+                <GlobalLockTimer expiresAt={sabotage.globalLockdownExpiresAt} />
+              )}
+            </button>
+          )}
 
           {isDoctor && (
             <button className="btn-action btn-monitor" onClick={() => setShowMonitor(true)}>

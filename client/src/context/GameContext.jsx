@@ -58,9 +58,11 @@ const initialState = {
   pendingLockNotification: null, // { type: 'room'|'global', roomName?, expiresAt }
   myCode: null,              // 3-digit string, non-station players only
   stationRoom: null,         // room this device is a station for
-  stationAssignments: [],    // [{ playerId, roomName, playerName }] — lobby
+  stationHasMeeting: false,  // whether this station device has the meeting button
+  stationAssignments: [],    // [{ playerId, roomName, playerName, hasMeeting }] — lobby
   pendingStationNotice: null, // { roomName } — shown when station disconnects
   isDoctor: false,           // doctor sub-role
+  reportBodyWindowEnd: null, // ms timestamp when current report window expires (null = no window)
 };
 
 function reducer(state, action) {
@@ -146,6 +148,7 @@ function reducer(state, action) {
         phase: 'station',
         myRole: 'station',
         stationRoom: action.roomName,
+        stationHasMeeting: action.hasMeeting ?? false,
       };
 
     case 'STATIONS_UPDATED':
@@ -197,6 +200,12 @@ function reducer(state, action) {
         killCooldownUntil: state.myRole === 'imposter' ? action.cooldownUntil : state.killCooldownUntil,
       };
 
+    case 'BODY_REPORT_WINDOW_OPENED':
+      return { ...state, reportBodyWindowEnd: action.expiresAt };
+
+    case 'BODY_REPORT_WINDOW_CLOSED':
+      return { ...state, reportBodyWindowEnd: null };
+
     case 'MEETING_CALLED':
       return {
         ...state,
@@ -208,9 +217,10 @@ function reducer(state, action) {
         totalVotesIn: 0,
         ejectedPlayer: null,
         lastMeeting: { reason: action.reason, reporterName: action.reporterName, bodyName: action.bodyName },
-        // Clear lockdown UI when a meeting starts (lockdown ends server-side too)
+        // Clear lockdown and report window UI when a meeting starts
         sabotage: { ...state.sabotage, globalLockdownActive: false, globalLockdownExpiresAt: null },
         pendingLockNotification: null,
+        reportBodyWindowEnd: null,
       };
 
     case 'SHOW_VOTING':
@@ -247,6 +257,7 @@ function reducer(state, action) {
         winner: action.winner,
         winReason: action.reason,
         players: action.players,
+        reportBodyWindowEnd: null,
       };
 
     case 'GAME_RESET':
@@ -263,8 +274,10 @@ function reducer(state, action) {
         stationAssignments: [],
         myCode: null,
         stationRoom: null,
+        stationHasMeeting: false,
         pendingStationNotice: null,
         isDoctor: false,
+        reportBodyWindowEnd: null,
       };
 
     case 'GAME_STATE_RESTORED': {
@@ -473,6 +486,14 @@ export function GameProvider({ children }) {
       dispatch({ type: 'KILL_CONFIRMED', victimId, cooldownUntil });
     });
 
+    socket.on('body_report_window_opened', ({ expiresAt }) => {
+      dispatch({ type: 'BODY_REPORT_WINDOW_OPENED', expiresAt });
+    });
+
+    socket.on('body_report_window_closed', () => {
+      dispatch({ type: 'BODY_REPORT_WINDOW_CLOSED' });
+    });
+
     socket.on('meeting_called', data => {
       dispatch({ type: 'MEETING_CALLED', ...data });
     });
@@ -562,6 +583,8 @@ export function GameProvider({ children }) {
       socket.off('kill_initiated');
       socket.off('kill_confirmed');
       socket.off('kill_cooldown_started');
+      socket.off('body_report_window_opened');
+      socket.off('body_report_window_closed');
       socket.off('meeting_called');
       socket.off('vote_cast');
       socket.off('vote_results');

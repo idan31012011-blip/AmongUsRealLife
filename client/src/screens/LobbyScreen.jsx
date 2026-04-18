@@ -49,6 +49,10 @@ export default function LobbyScreen() {
     socket.emit('unassign_station', { code: gameCode, playerId });
   }
 
+  function toggleStationMeeting(playerId, hasMeeting) {
+    socket.emit('set_station_meeting', { code: gameCode, playerId, hasMeeting });
+  }
+
   const stationPlayerIds = new Set((stationAssignments ?? []).map(s => s.playerId));
   const stationRoomNames = new Set((stationAssignments ?? []).map(s => s.roomName));
   const maxStations = activePlayers.length - 3;
@@ -138,8 +142,21 @@ export default function LobbyScreen() {
             <div key={s.playerId} className="station-assignment-row">
               <span className="station-assignment-name">{s.playerName}</span>
               <span className="badge">{s.roomName}</span>
-              {isManager && (
-                <button className="btn-kick" onClick={() => unassignStation(s.playerId)}>✕</button>
+              {isManager ? (
+                <>
+                  <label className="station-meeting-toggle" title={t('stationMeetingToggleLabel')}>
+                    <span className="station-meeting-toggle-label">🚨</span>
+                    <input
+                      type="checkbox"
+                      checked={s.hasMeeting ?? false}
+                      onChange={e => toggleStationMeeting(s.playerId, e.target.checked)}
+                    />
+                    <span className="settings-toggle-track" />
+                  </label>
+                  <button className="btn-kick" onClick={() => unassignStation(s.playerId)}>✕</button>
+                </>
+              ) : (
+                s.hasMeeting && <span className="badge">🚨</span>
               )}
             </div>
           ))}
