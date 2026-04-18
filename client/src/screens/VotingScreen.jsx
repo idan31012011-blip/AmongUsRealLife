@@ -3,16 +3,23 @@ import { useGame } from '../context/GameContext';
 import { useLanguage } from '../context/LanguageContext';
 import socket from '../socket';
 import { playVoteResults } from '../sounds';
+import Modal from '../components/Modal';
 
 export default function VotingScreen() {
   const { state, dispatch } = useGame();
   const { t } = useLanguage();
   const {
-    players, myId, isAlive, gameCode,
+    players, myId, isAlive, gameCode, isManager,
     myVote, totalVotesIn, votes, ejectedPlayer, lastMeeting,
   } = state;
 
   const [pendingVote, setPendingVote] = useState(null);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+
+  function endGame() {
+    socket.emit('end_game', { code: gameCode });
+    setShowEndConfirm(false);
+  }
 
   const livingPlayers = players.filter(p => p.isAlive);
   const totalLiving = livingPlayers.length;
@@ -115,6 +122,22 @@ export default function VotingScreen() {
             </button>
           </div>
         </div>
+      )}
+
+      {isManager && (
+        <div className="manager-controls">
+          <button className="btn btn-ghost btn-small" onClick={() => setShowEndConfirm(true)}>
+            {t('endGameBtn')}
+          </button>
+        </div>
+      )}
+
+      {showEndConfirm && (
+        <Modal title={t('endGameTitle')} onClose={() => setShowEndConfirm(false)}>
+          <p style={{ color: 'var(--color-text-dim)', marginBottom: '8px' }}>{t('endGameConfirm')}</p>
+          <button className="btn btn-red" onClick={endGame}>{t('endGameBtn')}</button>
+          <button className="btn btn-ghost" onClick={() => setShowEndConfirm(false)}>{t('cancel')}</button>
+        </Modal>
       )}
     </div>
   );
