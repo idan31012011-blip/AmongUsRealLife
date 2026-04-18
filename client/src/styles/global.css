@@ -2369,16 +2369,8 @@ input {
   max-width: 280px;
 }
 
-/* Station meeting toggle in lobby */
-.station-meeting-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-}
-
-.station-meeting-toggle input { display: none; }
-.station-meeting-toggle-label { font-size: 14px; }
+/* Station meeting toggle emoji label in lobby */
+.station-meeting-emoji { font-size: 14px; }
 
 /* ── RTL Adjustments (Hebrew) ────────────────────────────────────────────── */
 [dir="rtl"] .locked-rooms-panel {

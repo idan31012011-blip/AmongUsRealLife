@@ -144,8 +144,8 @@ export default function LobbyScreen() {
               <span className="badge">{s.roomName}</span>
               {isManager ? (
                 <>
-                  <label className="station-meeting-toggle" title={t('stationMeetingToggleLabel')}>
-                    <span className="station-meeting-toggle-label">🚨</span>
+                  <span className="station-meeting-emoji" title={t('stationMeetingToggleLabel')}>🚨</span>
+                  <label className="settings-toggle">
                     <input
                       type="checkbox"
                       checked={s.hasMeeting ?? false}

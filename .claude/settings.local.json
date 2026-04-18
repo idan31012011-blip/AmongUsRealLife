@@ -18,7 +18,9 @@
       "Bash(node -e \"require\\('./server/socketHandlers.js'\\)\")",
       "Bash(node -e \"require\\('./server/gameManager.js'\\)\")",
       "Bash(git add *)",
-      "Bash(git commit -m 'fix: station meeting button and report body mode activation *)"
+      "Bash(git commit -m 'fix: station meeting button and report body mode activation *)",
+      "Bash(git push *)",
+      "Bash(git commit -m 'fix: station meeting toggle visual state was broken in lobby *)"
     ]
   }
 }
