@@ -466,6 +466,11 @@ function registerHandlers(io, socket) {
 
     const stationRoom = game.stationRooms.get(socket.id);
 
+    // Block new task starts when the room is locked or global lockdown is active
+    if (game.sabotage.lockedRooms.has(stationRoom) || game.sabotage.globalLockdownActive) {
+      return socket.emit('station_code_result', { valid: false, reason: 'room_locked' });
+    }
+
     // Find which player owns this code
     let foundPlayerId = null;
     for (const [playerId, pCode] of game.playerCodes) {
@@ -854,9 +859,7 @@ function registerHandlers(io, socket) {
     game.imposterKillCooldownUntil = 0;
     game.gameStartTime = 0;
     game.meetingHasOccurred = false;
-    game.stations = new Set();
-    game.stationRooms = new Map();
-    game.stationMeetingEnabled = new Map();
+    // Stations are intentionally preserved across games
     game.playerCodes = new Map();
     game.doctorId = null;
     game.bodyReportWindow = null;
@@ -884,6 +887,7 @@ function registerHandlers(io, socket) {
       players: buildPublicPlayerList(game.players),
       rooms: game.rooms,
       settings: game.settings,
+      stationAssignments: buildStationList(game),
     });
   });
 

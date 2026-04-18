@@ -117,16 +117,19 @@ export default function GameScreen() {
         <TaskProgressBar percent={taskProgressPercent} />
       </div>
 
-      {/* Role badge */}
-      <div className={`role-badge ${showAsImposter ? 'role-imposter' : 'role-crewmate'}`}>
+      {/* Role badge — when disguised the badge itself is tappable to reveal */}
+      <div
+        className={`role-badge ${showAsImposter ? 'role-imposter' : 'role-crewmate'} ${isImposter && !isDead && disguised ? 'role-badge-tappable' : ''}`}
+        onClick={isImposter && !isDead && disguised ? () => setDisguised(false) : undefined}
+      >
         {isDead ? t('deadRole') : showAsImposter ? t('imposterRole') : t('crewmateRole')}
-        {isImposter && !isDead && (
+        {isImposter && !isDead && !disguised && (
           <button
-            className={`disguise-toggle ${disguised ? 'disguise-on' : ''}`}
-            onClick={() => setDisguised(d => !d)}
-            title={disguised ? 'Show true screen' : 'Disguise screen'}
+            className="disguise-toggle"
+            onClick={e => { e.stopPropagation(); setDisguised(true); }}
+            title="Disguise screen"
           >
-            {disguised ? '👁' : '🎭'}
+            🎭
           </button>
         )}
       </div>

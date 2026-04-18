@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import socket from '../socket';
 
-export default function HoldButton({ taskId, gameCode, duration, disabled, completed, onHoldStart, onHoldEnd }) {
+export default function HoldButton({ taskId, gameCode, duration, disabled, completed, locked, onHoldStart, onHoldEnd }) {
   const { t } = useLanguage();
   const [progress, setProgress] = useState(0);
   const [holding, setHolding] = useState(false);
@@ -23,7 +23,7 @@ export default function HoldButton({ taskId, gameCode, duration, disabled, compl
 
   function startHold(e) {
     e.preventDefault();
-    if (disabled || completed || holding) return;
+    if (disabled || completed || holding || (locked && !holding)) return;
 
     setHolding(true);
     setProgress(0);
@@ -69,12 +69,12 @@ export default function HoldButton({ taskId, gameCode, duration, disabled, compl
 
   return (
     <button
-      className={`hold-button ${completed ? 'hold-completed' : ''} ${holding ? 'hold-active' : ''} ${disabled ? 'hold-disabled' : ''}`}
+      className={`hold-button ${completed ? 'hold-completed' : ''} ${holding ? 'hold-active' : ''} ${(disabled || (locked && !holding)) ? 'hold-disabled' : ''} ${locked && !holding && !completed ? 'hold-locked' : ''}`}
       onPointerDown={startHold}
       onPointerUp={cancelHold}
       onPointerLeave={cancelHold}
       onPointerCancel={cancelHold}
-      disabled={disabled || completed}
+      disabled={disabled || completed || (locked && !holding)}
       style={{ touchAction: 'none' }}
     >
       <svg className="hold-ring" viewBox="0 0 60 60">

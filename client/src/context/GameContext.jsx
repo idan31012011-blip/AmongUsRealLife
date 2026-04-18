@@ -271,7 +271,7 @@ function reducer(state, action) {
         settings: action.settings ?? state.settings,
         isManager: state.isManager,
         myName: state.myName,
-        stationAssignments: [],
+        stationAssignments: action.stationAssignments ?? [],
         myCode: null,
         stationRoom: null,
         stationHasMeeting: false,

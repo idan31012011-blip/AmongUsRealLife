@@ -15,6 +15,8 @@ export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, dead
   }
 
   const holdDuration = isAlive ? (aliveDuration ?? 20000) : (deadDuration ?? 10000);
+  const lockedRoomNames = new Set((state.sabotage?.lockedRooms ?? []).map(r => r.roomName));
+  const globalLockdown = state.sabotage?.globalLockdownActive ?? false;
 
   return (
     <>
@@ -27,33 +29,39 @@ export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, dead
       )}
 
       <div className="task-list">
-        {tasks.map(task => (
-          <div key={task.id} className={`task-item ${task.completed ? 'task-done' : ''}`}>
-            <div className="task-info">
-              <div className="task-room">{task.room}</div>
-              <div className="task-desc">{task.description}</div>
-              {task.isFake && !hideFakeBadge && <div className="task-fake-badge">{t('fakeBadge')}</div>}
-            </div>
-            {task.type === 'station' ? (
-              <div className="station-task-badge">
-                {task.completed
-                  ? <span className="station-task-done">✓</span>
-                  : <span className="station-task-info">{t('stationTaskInfo')}</span>
-                }
+        {tasks.map(task => {
+          const taskLocked = !task.completed && (lockedRoomNames.has(task.room) || globalLockdown);
+          return (
+            <div key={task.id} className={`task-item ${task.completed ? 'task-done' : ''}`}>
+              <div className="task-info">
+                <div className="task-room">{task.room}</div>
+                <div className="task-desc">{task.description}</div>
+                {task.isFake && !hideFakeBadge && <div className="task-fake-badge">{t('fakeBadge')}</div>}
               </div>
-            ) : (
-              <HoldButton
-                taskId={task.id}
-                gameCode={gameCode}
-                duration={holdDuration}
-                completed={task.completed}
-                disabled={activeTaskId !== null && activeTaskId !== task.id}
-                onHoldStart={() => setActiveTaskId(task.id)}
-                onHoldEnd={() => setActiveTaskId(null)}
-              />
-            )}
-          </div>
-        ))}
+              {task.type === 'station' ? (
+                <div className="station-task-badge">
+                  {task.completed
+                    ? <span className="station-task-done">✓</span>
+                    : taskLocked
+                      ? <span className="station-task-locked">🔒</span>
+                      : <span className="station-task-info">{t('stationTaskInfo')}</span>
+                  }
+                </div>
+              ) : (
+                <HoldButton
+                  taskId={task.id}
+                  gameCode={gameCode}
+                  duration={holdDuration}
+                  completed={task.completed}
+                  locked={taskLocked}
+                  disabled={activeTaskId !== null && activeTaskId !== task.id}
+                  onHoldStart={() => setActiveTaskId(task.id)}
+                  onHoldEnd={() => setActiveTaskId(null)}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {showCode && (

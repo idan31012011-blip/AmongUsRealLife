@@ -2707,3 +2707,53 @@ input {
   border-color: var(--color-border);
   opacity: 0.7;
 }
+
+/* ── Disguise: tappable role badge ───────────────────────────────────────── */
+.role-badge-tappable {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ── HoldButton: locked state ────────────────────────────────────────────── */
+.hold-locked .hold-ring-track {
+  stroke: var(--color-border);
+}
+.hold-locked .hold-ring-progress {
+  stroke: var(--color-border);
+}
+.hold-locked .hold-inner {
+  opacity: 0.5;
+}
+.hold-locked .hold-label-text::before {
+  content: '🔒 ';
+}
+
+/* ── TaskList: station task locked badge ─────────────────────────────────── */
+.station-task-locked {
+  font-size: 18px;
+  opacity: 0.7;
+}
+
+/* ── StationScreen: abort button ─────────────────────────────────────────── */
+.station-abort-btn {
+  margin-top: var(--space-md);
+  color: var(--color-text-dim);
+}
+
+/* ── StationScreen: locked state ─────────────────────────────────────────── */
+.station-locked-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-xl) var(--space-md);
+  text-align: center;
+}
+.station-locked-icon {
+  font-size: 48px;
+}
+.station-locked-text {
+  font-size: 16px;
+  color: var(--color-text-dim);
+  font-weight: 500;
+}

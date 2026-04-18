@@ -197,6 +197,9 @@ export const translations = {
     stationDisconnectedNotice: (room) => `${room} station offline — task reverted`,
     stationMeetingBtn: 'Call Meeting',
     stationMeetingToggleLabel: 'Enable meeting button for this station',
+    simonAbortBtn: 'Abort Task',
+    simonAbortCooldown: (secs) => `Cooldown — try again in ${secs}s`,
+    stationRoomLocked: 'This room is locked — try again later',
 
     // Doctor
     settingsDoctor: 'Doctor',
@@ -409,6 +412,9 @@ export const translations = {
     stationDisconnectedNotice: (room) => `עמדת ${room} התנתקה — משימה הוחזרה`,
     stationMeetingBtn: 'קרא לאסיפה',
     stationMeetingToggleLabel: 'הפעל כפתור אסיפה לעמדה זו',
+    simonAbortBtn: 'בטל משימה',
+    simonAbortCooldown: (secs) => `זמן קירור — נסה שוב בעוד ${secs}ש'`,
+    stationRoomLocked: 'החדר נעול — נסה שוב מאוחר יותר',
 
     // Doctor
     settingsDoctor: 'רופא',

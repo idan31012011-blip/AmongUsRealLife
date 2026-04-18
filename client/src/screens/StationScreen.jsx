@@ -14,10 +14,22 @@ export default function StationScreen() {
   const [currentPlayerId, setCurrentPlayerId] = useState(null);
   const [currentPlayerName, setCurrentPlayerName] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [abortCooldowns, setAbortCooldowns] = useState({}); // { playerId: expiresAt }
+
+  const isRoomLocked = (state.sabotage?.lockedRooms ?? []).some(r => r.roomName === stationRoom)
+    || (state.sabotage?.globalLockdownActive ?? false);
 
   useEffect(() => {
     function onCodeResult({ valid, reason, playerName, playerId }) {
       if (valid) {
+        const cooldownUntil = abortCooldowns[playerId] ?? 0;
+        if (Date.now() < cooldownUntil) {
+          const secs = Math.ceil((cooldownUntil - Date.now()) / 1000);
+          setErrorMsg(t('simonAbortCooldown', secs));
+          setEnteredCode('');
+          setUiPhase('idle');
+          return;
+        }
         setCurrentPlayerName(playerName);
         setCurrentPlayerId(playerId);
         setUiPhase('simon');
@@ -26,6 +38,10 @@ export default function StationScreen() {
         setCurrentPlayerName(playerName);
         setUiPhase('already_done');
         setTimeout(() => { setUiPhase('idle'); setEnteredCode(''); }, 2500);
+      } else if (reason === 'room_locked') {
+        setErrorMsg(t('stationRoomLocked'));
+        setEnteredCode('');
+        setUiPhase('idle');
       } else {
         setErrorMsg(t('stationInvalidCode'));
         setEnteredCode('');
@@ -45,7 +61,7 @@ export default function StationScreen() {
       socket.off('station_code_result', onCodeResult);
       socket.off('station_success', onSuccess);
     };
-  }, [t]);
+  }, [t, abortCooldowns]);
 
   function pressDigit(digit) {
     if (enteredCode.length < 3) setEnteredCode(c => c + digit);
@@ -66,6 +82,14 @@ export default function StationScreen() {
     socket.emit('station_task_complete', { code: gameCode, playerId: currentPlayerId });
   }
 
+  function abortSimon() {
+    setAbortCooldowns(prev => ({ ...prev, [currentPlayerId]: Date.now() + 60000 }));
+    setCurrentPlayerId(null);
+    setCurrentPlayerName(null);
+    setUiPhase('idle');
+    setEnteredCode('');
+  }
+
   function callMeeting() {
     socket.emit('station_call_meeting', { code: gameCode });
   }
@@ -74,14 +98,19 @@ export default function StationScreen() {
     <div className="screen station-screen">
       <div className="station-room-title">{t('stationScreenTitle', stationRoom ?? '?')}</div>
 
-      {stationHasMeeting && uiPhase === 'idle' && (
+      {stationHasMeeting && uiPhase === 'idle' && !isRoomLocked && (
         <button className="btn btn-red btn-large station-meeting-btn" onClick={callMeeting}>
           🚨 {t('stationMeetingBtn')}
         </button>
       )}
 
       {uiPhase === 'simon' ? (
-        <SimonSaysGame playerName={currentPlayerName} onSuccess={handleSimonSuccess} />
+        <>
+          <SimonSaysGame playerName={currentPlayerName} onSuccess={handleSimonSuccess} />
+          <button className="btn btn-ghost btn-small station-abort-btn" onClick={abortSimon}>
+            {t('simonAbortBtn')}
+          </button>
+        </>
       ) : uiPhase === 'success' ? (
         <div className="station-result station-result-success">
           <div className="station-result-icon">✓</div>
@@ -91,6 +120,11 @@ export default function StationScreen() {
         <div className="station-result station-result-done">
           <div className="station-result-icon">✓</div>
           <div className="station-result-text">{t('stationAlreadyDone', currentPlayerName)}</div>
+        </div>
+      ) : isRoomLocked ? (
+        <div className="station-locked-msg">
+          <div className="station-locked-icon">🔒</div>
+          <div className="station-locked-text">{t('stationRoomLocked')}</div>
         </div>
       ) : (
         <div className="station-entry">
