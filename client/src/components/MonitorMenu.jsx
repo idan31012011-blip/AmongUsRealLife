@@ -46,7 +46,7 @@ export default function MonitorMenu({ onClose }) {
           s.isDead = true;
           s.isDying = false;
           s.magnitude = 0;
-        }, 4000);
+        }, 8000);
       }
     });
   }, [players]);
@@ -67,9 +67,6 @@ export default function MonitorMenu({ onClose }) {
                 <div className="monitor-player-info">
                   <span className="monitor-player-name">
                     {p.name}{p.id === myId ? ` ${t('monitorYou')}` : ''}
-                  </span>
-                  <span className={`monitor-status ${isDead ? 'status-dead' : 'status-alive'}`}>
-                    {isDead ? t('monitorDead') : t('monitorAlive')}
                   </span>
                 </div>
                 <HeartbeatLine getState={() => statesRef.current[p.id] ?? { isDead: true, magnitude: 0 }} />

@@ -589,7 +589,7 @@ export function GameProvider({ children }) {
     let lastMagnitude = 0;
 
     function handleMotion(e) {
-      const a = e.accelerationIncludingGravity || e.acceleration;
+      const a = e.acceleration || e.accelerationIncludingGravity;
       if (!a) return;
       lastMagnitude = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2);
     }

@@ -28,20 +28,22 @@ export default function HeartbeatLine({ getState }) {
       let effectiveMag = isDead ? 0 : rawMag;
       let dyingFactor = 1;
       if (isDying && dyingStart) {
-        dyingFactor = Math.max(0, 1 - (Date.now() - dyingStart) / 4000);
+        dyingFactor = Math.max(0, 1 - (Date.now() - dyingStart) / 8000);
         effectiveMag = rawMag * dyingFactor;
       }
 
       // Smooth with lag (realistic delay)
       smoothed = smoothed * 0.88 + effectiveMag * 0.12;
 
-      // Frequency: slow when still, fast when running
-      const freq = isDead ? 0 : 0.04 + Math.min(smoothed / 12, 0.1) * (isDying ? dyingFactor : 1);
+      // Frequency: very slow when still, much faster when running (power curve for big contrast)
+      const normalizedFreq = Math.pow(Math.min(smoothed / 6, 1), 1.4);
+      const freq = isDead ? 0 : (0.008 + normalizedFreq * 0.22) * (isDying ? dyingFactor : 1);
       phase += freq;
 
-      // Amplitude proportional to motion
-      const maxAmp = H / 2 - 5;
-      const amp = isDead ? 0 : Math.min(smoothed / 14, 1) * maxAmp;
+      // Amplitude: power curve so small motion = tiny, running = large
+      const maxAmp = H / 2 - 4;
+      const normalizedAmp = Math.pow(Math.min(smoothed / 6, 1), 1.2);
+      const amp = isDead ? 0 : normalizedAmp * maxAmp;
 
       // Scroll canvas left by 1 pixel
       const imgData = ctx.getImageData(1, 0, W - 1, H);
@@ -51,10 +53,9 @@ export default function HeartbeatLine({ getState }) {
       ctx.fillStyle = '#060d1a';
       ctx.fillRect(W - 1, 0, 1, H);
 
-      // Draw new point
+      // Draw new point — single green color; dead line is flat (amp = 0) with dim dot
       const y = H / 2 + Math.sin(phase) * amp;
-      const color = isDead ? '#2a3a2a' : isDying ? `rgb(${Math.round(255 * dyingFactor + 80 * (1 - dyingFactor))}, ${Math.round(255 * dyingFactor)}, ${Math.round(80 * dyingFactor)})` : '#00ff88';
-      ctx.fillStyle = color;
+      ctx.fillStyle = isDead ? '#1a2e1a' : '#00ff88';
       ctx.fillRect(W - 1, Math.round(y) - 1, 1, 3);
 
       raf = requestAnimationFrame(draw);
