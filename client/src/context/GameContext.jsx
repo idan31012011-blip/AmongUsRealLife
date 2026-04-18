@@ -454,8 +454,8 @@ export function GameProvider({ children }) {
       dispatch({ type: 'ROLE_ASSIGNED', role, tasks, killCooldownUntil, myCode });
     });
 
-    socket.on('station_device_ready', ({ roomName }) => {
-      dispatch({ type: 'STATION_DEVICE_READY', roomName });
+    socket.on('station_device_ready', ({ roomName, hasMeeting }) => {
+      dispatch({ type: 'STATION_DEVICE_READY', roomName, hasMeeting });
     });
 
     socket.on('stations_updated', ({ stations }) => {

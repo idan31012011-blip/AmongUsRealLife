@@ -572,8 +572,8 @@ function registerHandlers(io, socket) {
       cooldownUntil: game.imposterKillCooldownUntil,
     });
 
-    // Open 10-second report window for impostor only (stations mode)
-    if (game.settings.stationsEnabled) {
+    // Open 10-second report window for impostor only (stations mode with a meeting station)
+    if (game.settings.stationsEnabled && hasAnyStationWithMeeting(game)) {
       if (game.bodyReportWindow?.timeoutId) clearTimeout(game.bodyReportWindow.timeoutId);
       const windowExpiry = Date.now() + 10000;
       const windowTimeout = setTimeout(() => {
@@ -697,8 +697,8 @@ function registerHandlers(io, socket) {
     const caller = game.players.get(socket.id);
     if (!caller || !caller.isAlive) return socket.emit('error', { message: 'Not allowed.' });
 
-    // When stations are enabled, emergency meetings must be called from a station
-    if (game.settings.stationsEnabled) {
+    // When stations are enabled and at least one station has meeting, block direct emergency
+    if (game.settings.stationsEnabled && hasAnyStationWithMeeting(game)) {
       return socket.emit('error', { message: 'Meetings must be called from a station.' });
     }
 
@@ -944,6 +944,10 @@ function registerHandlers(io, socket) {
 }
 
 // ─── STATION HELPERS ────────────────────────────────────────────────────────
+
+function hasAnyStationWithMeeting(game) {
+  return [...game.stationMeetingEnabled.values()].some(v => v);
+}
 
 function buildStationList(game) {
   const list = [];

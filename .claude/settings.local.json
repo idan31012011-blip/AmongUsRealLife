@@ -16,7 +16,9 @@
       "Bash(node -e \"require\\('./server/utils'\\); require\\('./server/gameManager'\\); require\\('./server/gameLogic'\\); console.log\\('Server modules OK'\\);\")",
       "Bash(node -e \"require\\('./server/socketHandlers'\\); console.log\\('socketHandlers OK'\\);\")",
       "Bash(node -e \"require\\('./server/socketHandlers.js'\\)\")",
-      "Bash(node -e \"require\\('./server/gameManager.js'\\)\")"
+      "Bash(node -e \"require\\('./server/gameManager.js'\\)\")",
+      "Bash(git add *)",
+      "Bash(git commit -m 'fix: station meeting button and report body mode activation *)"
     ]
   }
 }

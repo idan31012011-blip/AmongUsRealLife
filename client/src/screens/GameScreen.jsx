@@ -107,7 +107,7 @@ export default function GameScreen() {
   const isLocked = isDead && !myPlayer?.bodyFound;
   const lockdownActive = sabotage.globalLockdownActive;
   const showAsImposter = isImposter && !disguised;
-  const stationsMode = settings.stationsEnabled;
+  const stationsMode = settings.stationsEnabled && (state.stationAssignments ?? []).some(s => s.hasMeeting);
   const reportWindowActive = stationsMode && reportBodyWindowEnd != null && Date.now() < reportBodyWindowEnd;
 
   return (
