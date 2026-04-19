@@ -1,6 +1,6 @@
 // Sound effects generated via Web Audio API — no external files needed.
 // Exports: playEmergencyAlarm, playRoleSuspense, playVoteResults, playGameEnd,
-//          playRoomLock, playGlobalLockdownAlarm
+//          playRoomLock, playGlobalLockdownAlarm, playCriticalCountdownAlarm
 
 let _ctx = null;
 
@@ -234,6 +234,43 @@ export function playRoomLock() {
     cg.connect(ac.destination);
     click.start(now);
     click.stop(now + 0.1);
+  } catch (_) {}
+}
+
+// 7. Critical countdown alarm — deep descending siren + rapid triple beep burst
+export function playCriticalCountdownAlarm() {
+  try {
+    const ac = ctx();
+    const now = ac.currentTime;
+
+    // Descending siren: 800→200 Hz sweep, twice
+    [0, 0.6].forEach(offset => {
+      const siren = ac.createOscillator();
+      const sg = ac.createGain();
+      siren.type = 'sawtooth';
+      siren.frequency.setValueAtTime(800, now + offset);
+      siren.frequency.exponentialRampToValueAtTime(200, now + offset + 0.5);
+      sg.gain.setValueAtTime(0.5, now + offset);
+      sg.gain.linearRampToValueAtTime(0, now + offset + 0.55);
+      siren.connect(sg);
+      sg.connect(ac.destination);
+      siren.start(now + offset);
+      siren.stop(now + offset + 0.6);
+    });
+
+    // Triple staccato beep burst at the end
+    [1.3, 1.45, 1.6].forEach(offset => {
+      const beep = ac.createOscillator();
+      const bg = ac.createGain();
+      beep.type = 'square';
+      beep.frequency.value = 1400;
+      bg.gain.setValueAtTime(0.45, now + offset);
+      bg.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.1);
+      beep.connect(bg);
+      bg.connect(ac.destination);
+      beep.start(now + offset);
+      beep.stop(now + offset + 0.12);
+    });
   } catch (_) {}
 }
 

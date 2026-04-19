@@ -26,6 +26,7 @@ export default function GameEndScreen() {
     tasks_complete: t('reasonTasksComplete'),
     imposter_wins: t('reasonImposterWins'),
     manager_ended: t('reasonManagerEnded'),
+    critical_countdown_expired: t('reasonCriticalCountdownExpired'),
   }[winReason] || '';
 
   function playAgain() {

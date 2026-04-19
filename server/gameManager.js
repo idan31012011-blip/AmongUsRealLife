@@ -36,12 +36,17 @@ function createGame({ managerId, rooms, settings }) {
       maxLockedRooms:         settings?.maxLockedRooms         ?? 2,
       roomLockDuration:       settings?.roomLockDuration       ?? 20000,
       roomLockCooldown:       settings?.roomLockCooldown       ?? 60000,
-      globalLockdownEnabled:  settings?.globalLockdownEnabled  ?? true,
-      globalLockdownDuration: settings?.globalLockdownDuration ?? 30000,
-      globalLockdownCooldown: settings?.globalLockdownCooldown ?? 120000,
-      maxGlobalLockdowns:     settings?.maxGlobalLockdowns     ?? 2,
-      stationsEnabled:        settings?.stationsEnabled        ?? false,
-      doctorEnabled:          settings?.doctorEnabled          ?? false,
+      globalLockdownEnabled:        settings?.globalLockdownEnabled        ?? true,
+      globalLockdownDuration:       settings?.globalLockdownDuration       ?? 30000,
+      globalLockdownCooldown:       settings?.globalLockdownCooldown       ?? 120000,
+      maxGlobalLockdowns:           settings?.maxGlobalLockdowns           ?? 2,
+      stationsEnabled:              settings?.stationsEnabled              ?? false,
+      doctorEnabled:                settings?.doctorEnabled                ?? false,
+      criticalCountdownEnabled:     settings?.criticalCountdownEnabled     ?? false,
+      criticalCountdownDuration:    settings?.criticalCountdownDuration    ?? 40000,
+      criticalCountdownCooldown:    settings?.criticalCountdownCooldown    ?? 30000,
+      maxCriticalCountdowns:        settings?.maxCriticalCountdowns        ?? 1,
+      criticalCountdownStation:     settings?.criticalCountdownStation     ?? null,
     },
     sabotage: {
       lockedRooms: new Map(),         // roomName → { expiresAt, timeoutId }
@@ -51,6 +56,12 @@ function createGame({ managerId, rooms, settings }) {
       globalLockdownCooldownUntil: 0,
       globalLockdownUsesLeft: settings?.maxGlobalLockdowns ?? 2,
       globalLockdownTimeoutId: null,
+      criticalCountdownActive: false,
+      criticalCountdownExpiresAt: null,
+      criticalCountdownCooldownUntil: 0,
+      criticalCountdownUsesLeft: settings?.maxCriticalCountdowns ?? 1,
+      criticalCountdownCode: null,
+      criticalCountdownTimeoutId: null,
     },
   };
 
@@ -71,6 +82,9 @@ function deleteGame(code) {
     }
     if (game.sabotage.globalLockdownTimeoutId) {
       clearTimeout(game.sabotage.globalLockdownTimeoutId);
+    }
+    if (game.sabotage.criticalCountdownTimeoutId) {
+      clearTimeout(game.sabotage.criticalCountdownTimeoutId);
     }
   }
   games.delete(code);

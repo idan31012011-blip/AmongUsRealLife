@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect } from 'react';
 import socket from '../socket';
-import { playRoomLock, playGlobalLockdownAlarm } from '../sounds';
+import { playRoomLock, playGlobalLockdownAlarm, playCriticalCountdownAlarm } from '../sounds';
 
 const GameContext = createContext(null);
 
@@ -27,6 +27,11 @@ const defaultSabotage = {
   globalLockdownExpiresAt: null,
   globalLockdownCooldownUntil: 0,
   globalLockdownUsesLeft: 2,
+  criticalCountdownActive: false,
+  criticalCountdownExpiresAt: null,
+  criticalCountdownCooldownUntil: 0,
+  criticalCountdownUsesLeft: 1,
+  criticalCountdownStationRoom: null,
 };
 
 const initialState = {
@@ -73,6 +78,29 @@ function reducer(state, action) {
         return { ...state, taskProgressPercent: action.taskProgressPercent };
       }
       return state;
+    }
+    // Allow sabotage state updates to pass through for stations
+    if (action.type === 'CRITICAL_COUNTDOWN_STARTED') {
+      return {
+        ...state,
+        sabotage: {
+          ...state.sabotage,
+          criticalCountdownActive: true,
+          criticalCountdownExpiresAt: action.expiresAt,
+          criticalCountdownStationRoom: action.stationRoom,
+        },
+      };
+    }
+    if (action.type === 'CRITICAL_COUNTDOWN_SUCCESS') {
+      return {
+        ...state,
+        sabotage: {
+          ...state.sabotage,
+          criticalCountdownActive: false,
+          criticalCountdownExpiresAt: null,
+          criticalCountdownStationRoom: null,
+        },
+      };
     }
   }
 
@@ -217,8 +245,15 @@ function reducer(state, action) {
         totalVotesIn: 0,
         ejectedPlayer: null,
         lastMeeting: { reason: action.reason, reporterName: action.reporterName, bodyName: action.bodyName },
-        // Clear lockdown and report window UI when a meeting starts
-        sabotage: { ...state.sabotage, globalLockdownActive: false, globalLockdownExpiresAt: null },
+        // Clear active sabotages and report window UI when a meeting starts
+        sabotage: {
+          ...state.sabotage,
+          globalLockdownActive: false,
+          globalLockdownExpiresAt: null,
+          criticalCountdownActive: false,
+          criticalCountdownExpiresAt: null,
+          criticalCountdownStationRoom: null,
+        },
         pendingLockNotification: null,
         reportBodyWindowEnd: null,
       };
@@ -289,6 +324,11 @@ function reducer(state, action) {
             globalLockdownExpiresAt: action.sabotage.globalLockdown?.expiresAt ?? null,
             globalLockdownCooldownUntil: action.sabotage.globalLockdown?.cooldownUntil ?? 0,
             globalLockdownUsesLeft: action.sabotage.globalLockdown?.usesLeft ?? state.settings.maxGlobalLockdowns,
+            criticalCountdownActive: action.sabotage.criticalCountdown?.active ?? false,
+            criticalCountdownExpiresAt: action.sabotage.criticalCountdown?.expiresAt ?? null,
+            criticalCountdownCooldownUntil: action.sabotage.criticalCountdown?.cooldownUntil ?? 0,
+            criticalCountdownUsesLeft: action.sabotage.criticalCountdown?.usesLeft ?? 1,
+            criticalCountdownStationRoom: null,
           }
         : state.sabotage;
 
@@ -391,6 +431,28 @@ function reducer(state, action) {
         pendingLockNotification: null,
       };
 
+    case 'CRITICAL_COUNTDOWN_STARTED':
+      return {
+        ...state,
+        sabotage: {
+          ...state.sabotage,
+          criticalCountdownActive: true,
+          criticalCountdownExpiresAt: action.expiresAt,
+          criticalCountdownStationRoom: action.stationRoom,
+        },
+      };
+
+    case 'CRITICAL_COUNTDOWN_SUCCESS':
+      return {
+        ...state,
+        sabotage: {
+          ...state.sabotage,
+          criticalCountdownActive: false,
+          criticalCountdownExpiresAt: null,
+          criticalCountdownStationRoom: null,
+        },
+      };
+
     case 'SABOTAGE_STATUS':
       return {
         ...state,
@@ -401,6 +463,11 @@ function reducer(state, action) {
           globalLockdownExpiresAt: action.globalLockdown?.expiresAt ?? null,
           globalLockdownCooldownUntil: action.globalLockdown?.cooldownUntil ?? 0,
           globalLockdownUsesLeft: action.globalLockdown?.usesLeft ?? 0,
+          criticalCountdownActive: action.criticalCountdown?.active ?? state.sabotage.criticalCountdownActive,
+          criticalCountdownExpiresAt: action.criticalCountdown?.expiresAt ?? state.sabotage.criticalCountdownExpiresAt,
+          criticalCountdownCooldownUntil: action.criticalCountdown?.cooldownUntil ?? 0,
+          criticalCountdownUsesLeft: action.criticalCountdown?.usesLeft ?? 0,
+          criticalCountdownStationRoom: state.sabotage.criticalCountdownStationRoom,
         },
       };
 
@@ -555,6 +622,15 @@ export function GameProvider({ children }) {
       dispatch({ type: 'GLOBAL_LOCKDOWN_ENDED' });
     });
 
+    socket.on('critical_countdown_started', ({ expiresAt, stationRoom }) => {
+      dispatch({ type: 'CRITICAL_COUNTDOWN_STARTED', expiresAt, stationRoom });
+      playCriticalCountdownAlarm();
+    });
+
+    socket.on('critical_countdown_success', () => {
+      dispatch({ type: 'CRITICAL_COUNTDOWN_SUCCESS' });
+    });
+
     socket.on('sabotage_status', data => {
       dispatch({ type: 'SABOTAGE_STATUS', ...data });
     });
@@ -599,6 +675,8 @@ export function GameProvider({ children }) {
       socket.off('room_unlocked');
       socket.off('global_lockdown_started');
       socket.off('global_lockdown_ended');
+      socket.off('critical_countdown_started');
+      socket.off('critical_countdown_success');
       socket.off('sabotage_status');
       socket.off('error');
     };

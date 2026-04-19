@@ -125,6 +125,38 @@ export const translations = {
     noUsesLeft: 'No Uses Left',
     cooldownLabel: 'Cooldown',
     globalLockdownBtn: '🔒 Global Lockdown',
+    criticalCountdownSection: 'Critical Countdown',
+    criticalCountdownBtn: '💥 Trigger Critical Countdown',
+    criticalCountdownActiveBadge: '💥 ACTIVE',
+
+    // Critical Countdown overlay (all players)
+    criticalCountdownOverlayTitle: '⚠ CRITICAL COUNTDOWN',
+    criticalCountdownOverlaySubtitle: (room) => `Enter the code at the ${room} station!`,
+    criticalCountdownImposterSubtitle: 'Countdown in progress — crew must enter the code!',
+
+    // Critical Countdown station UI (designated station)
+    criticalCountdownCodePrompt: 'Enter this code:',
+    criticalCountdownEntryPrompt: 'Type the code above:',
+    criticalCountdownSubmit: 'Submit Code',
+    criticalCountdownWrongCode: 'Wrong code — try again!',
+    criticalCountdownSuccess: 'Code accepted! Countdown stopped.',
+
+    // Critical Countdown non-designated station overlay
+    criticalCountdownStationAlert: (room) => `Critical Countdown!\nGo to the ${room} station!`,
+
+    // Critical Countdown settings
+    settingsCriticalCountdown: 'Critical Countdown',
+    criticalCountdownEnabledLabel: 'Critical Countdown enabled',
+    criticalCountdownRequiresStations: 'Requires at least one station',
+    criticalCountdownDurationLabel: 'Countdown duration',
+    criticalCountdownCooldownLabel: 'Cooldown between uses',
+    maxCriticalCountdownsLabel: 'Max uses per game',
+    criticalCountdownStationLabel: 'Designated station (auto if only one)',
+    criticalCountdownStationAuto: 'Auto (only station)',
+    criticalCountdownStationSelect: 'Select station room…',
+
+    // Game end reasons
+    reasonCriticalCountdownExpired: 'The crew failed to enter the code in time!',
 
     // Settings panel
     settingsEditTitle: 'Edit Settings',
@@ -340,6 +372,30 @@ export const translations = {
     noUsesLeft: 'אין שימושים נותרים',
     cooldownLabel: 'זמן קירור',
     globalLockdownBtn: '🔒 נעילה כללית',
+    criticalCountdownSection: 'ספירה לאחור קריטית',
+    criticalCountdownBtn: '💥 הפעל ספירה לאחור קריטית',
+    criticalCountdownActiveBadge: '💥 פעיל',
+    criticalCountdownOverlayTitle: '⚠ ספירה לאחור קריטית',
+    criticalCountdownOverlaySubtitle: (room) => `הכנס את הקוד בעמדת ${room}!`,
+    criticalCountdownImposterSubtitle: 'ספירה לאחור פעילה — הצוות צריך להכניס את הקוד!',
+    criticalCountdownCodePrompt: 'הכנס קוד זה:',
+    criticalCountdownEntryPrompt: 'הקלד את הקוד למעלה:',
+    criticalCountdownSubmit: 'שלח קוד',
+    criticalCountdownWrongCode: 'קוד שגוי — נסה שנית!',
+    criticalCountdownSuccess: 'הקוד התקבל! הספירה לאחור הופסקה.',
+    criticalCountdownStationAlert: (room) => `ספירה לאחור קריטית!\nלך לעמדת ${room}!`,
+
+    // Critical Countdown settings
+    settingsCriticalCountdown: 'ספירה לאחור קריטית',
+    criticalCountdownEnabledLabel: 'ספירה לאחור קריטית פעילה',
+    criticalCountdownRequiresStations: 'דורש לפחות עמדה אחת',
+    criticalCountdownDurationLabel: 'משך הספירה',
+    criticalCountdownCooldownLabel: 'זמן קירור בין שימושים',
+    maxCriticalCountdownsLabel: 'מקס. שימושים למשחק',
+    criticalCountdownStationLabel: 'עמדה ייעודית (אוטומטי אם יש רק אחת)',
+    criticalCountdownStationAuto: 'אוטומטי (עמדה יחידה)',
+    criticalCountdownStationSelect: 'בחר חדר עמדה…',
+    reasonCriticalCountdownExpired: 'הצוות לא הכניס את הקוד בזמן!',
 
     // Settings panel
     settingsEditTitle: 'ערוך הגדרות',

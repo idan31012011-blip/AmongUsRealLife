@@ -219,6 +219,7 @@ export default function LobbyScreen() {
           gameCode={gameCode}
           onClose={() => setShowSettings(false)}
           playerCount={activePlayers.length}
+          stationAssignments={stationAssignments}
         />
       )}
     </div>

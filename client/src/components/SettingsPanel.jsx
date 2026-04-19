@@ -13,6 +13,9 @@ const DEFAULTS_SEC = {
   globalLockdownDuration: 30,
   globalLockdownCooldown: 120,
   maxGlobalLockdowns: 2,
+  criticalCountdownDuration: 40,
+  criticalCountdownCooldown: 30,
+  maxCriticalCountdowns: 1,
 };
 
 function toSec(ms) { return Math.round(ms / 1000); }
@@ -66,7 +69,7 @@ function Toggle({ checked, onChange, disabled }) {
   );
 }
 
-export default function SettingsPanel({ isManager, settings, rooms, gameCode, onClose, playerCount }) {
+export default function SettingsPanel({ isManager, settings, rooms, gameCode, onClose, playerCount, stationAssignments }) {
   const { t } = useLanguage();
 
   const [local, setLocal] = useState({
@@ -84,6 +87,11 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
     maxGlobalLockdowns: settings.maxGlobalLockdowns,
     stationsEnabled: settings.stationsEnabled ?? false,
     doctorEnabled: settings.doctorEnabled ?? false,
+    criticalCountdownEnabled: settings.criticalCountdownEnabled ?? false,
+    criticalCountdownDuration: toSec(settings.criticalCountdownDuration ?? 40000),
+    criticalCountdownCooldown: toSec(settings.criticalCountdownCooldown ?? 30000),
+    maxCriticalCountdowns: settings.maxCriticalCountdowns ?? 1,
+    criticalCountdownStation: settings.criticalCountdownStation ?? null,
   });
 
   const [saved, setSaved] = useState(false);
@@ -111,6 +119,11 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
       maxGlobalLockdowns: settings.maxGlobalLockdowns,
       stationsEnabled: settings.stationsEnabled ?? false,
       doctorEnabled: settings.doctorEnabled ?? false,
+      criticalCountdownEnabled: settings.criticalCountdownEnabled ?? false,
+      criticalCountdownDuration: toSec(settings.criticalCountdownDuration ?? 40000),
+      criticalCountdownCooldown: toSec(settings.criticalCountdownCooldown ?? 30000),
+      maxCriticalCountdowns: settings.maxCriticalCountdowns ?? 1,
+      criticalCountdownStation: settings.criticalCountdownStation ?? null,
     });
     setSaved(true);
     const timer = setTimeout(() => setSaved(false), 1500);
@@ -170,6 +183,11 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
         maxGlobalLockdowns: parseInt(local.maxGlobalLockdowns, 10),
         stationsEnabled: local.stationsEnabled,
         doctorEnabled: local.doctorEnabled,
+        criticalCountdownEnabled: local.criticalCountdownEnabled,
+        criticalCountdownDuration: toMs(local.criticalCountdownDuration),
+        criticalCountdownCooldown: toMs(local.criticalCountdownCooldown),
+        maxCriticalCountdowns: parseInt(local.maxCriticalCountdowns, 10),
+        criticalCountdownStation: local.criticalCountdownStation || null,
       },
     });
   }
@@ -256,6 +274,69 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
                 </SettingsRow>
               </>
             )}
+
+            <div className="settings-subsection-title">{t('settingsCriticalCountdown')}</div>
+
+            {(() => {
+              const assignedStations = stationAssignments ?? [];
+              const hasStations = local.stationsEnabled && assignedStations.length > 0;
+              const multiStation = assignedStations.length >= 2;
+              return (
+                <>
+                  <SettingsRow
+                    label={t('criticalCountdownEnabledLabel')}
+                    defaultLabel={t('defaultPrefix', t('defaultOff'))}
+                  >
+                    <Toggle
+                      checked={local.criticalCountdownEnabled}
+                      onChange={v => set('criticalCountdownEnabled', v)}
+                      disabled={ro || !hasStations}
+                    />
+                  </SettingsRow>
+                  {!ro && !hasStations && (
+                    <p className="settings-sublabel" style={{ marginTop: 4, textAlign: 'right', color: 'var(--color-text-dim)' }}>
+                      {t('criticalCountdownRequiresStations')}
+                    </p>
+                  )}
+                  {local.criticalCountdownEnabled && hasStations && (
+                    <>
+                      <SettingsRow label={t('criticalCountdownDurationLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.criticalCountdownDuration}s`)}>
+                        <NumInput value={local.criticalCountdownDuration} onChange={v => set('criticalCountdownDuration', v)}
+                          min={10} max={120} disabled={ro} />
+                      </SettingsRow>
+                      <SettingsRow label={t('criticalCountdownCooldownLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.criticalCountdownCooldown}s`)}>
+                        <NumInput value={local.criticalCountdownCooldown} onChange={v => set('criticalCountdownCooldown', v)}
+                          min={10} max={300} disabled={ro} />
+                      </SettingsRow>
+                      <SettingsRow label={t('maxCriticalCountdownsLabel')} defaultLabel={t('defaultPrefix', String(DEFAULTS_SEC.maxCriticalCountdowns))}>
+                        <NumInput value={local.maxCriticalCountdowns} onChange={v => set('maxCriticalCountdowns', v)}
+                          min={1} max={5} unit="" disabled={ro} />
+                      </SettingsRow>
+                      {multiStation && (
+                        <SettingsRow label={t('criticalCountdownStationLabel')} defaultLabel="">
+                          {ro ? (
+                            <span className="settings-value">{local.criticalCountdownStation || t('criticalCountdownStationAuto')}</span>
+                          ) : (
+                            <select
+                              className="settings-input"
+                              value={local.criticalCountdownStation || ''}
+                              onChange={e => set('criticalCountdownStation', e.target.value || null)}
+                              style={{ fontSize: 13 }}
+                            >
+                              <option value="">{t('criticalCountdownStationSelect')}</option>
+                              {assignedStations.map(s => (
+                                <option key={s.roomName} value={s.roomName}>{s.roomName}</option>
+                              ))}
+                            </select>
+                          )}
+                        </SettingsRow>
+                      )}
+                    </>
+                  )}
+                </>
+              );
+            })()}
+
           </>
         )}
 

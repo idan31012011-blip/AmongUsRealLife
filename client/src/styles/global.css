@@ -2757,3 +2757,132 @@ input {
   color: var(--color-text-dim);
   font-weight: 500;
 }
+
+/* ── Critical Countdown Overlay (GameScreen + non-designated StationScreen) ── */
+.cc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+  background: rgba(180, 0, 0, 0.92);
+  animation: lockdownPulse 0.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.cc-overlay-title {
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 0 24px rgba(255, 80, 80, 1);
+}
+
+.cc-overlay-timer {
+  font-size: 96px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+  text-shadow: 0 0 32px rgba(255, 255, 255, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-overlay-subtitle {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  max-width: 280px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+/* ── Critical Countdown Station Screen ──────────────────────────────────── */
+.cc-station-screen {
+  background: #1a0000 !important;
+  gap: var(--space-md) !important;
+}
+
+.cc-station-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #ff4040;
+  text-align: center;
+  padding-top: var(--space-md);
+  text-shadow: 0 0 16px rgba(255, 60, 60, 0.6);
+}
+
+.cc-station-code-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.cc-station-code-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* The 5-digit code displayed to be typed */
+.cc-code-display {
+  display: flex;
+  gap: 10px;
+}
+
+.cc-code-show-digit {
+  width: 52px;
+  height: 68px;
+  border: 2px solid rgba(255, 80, 80, 0.6);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 900;
+  color: #ff4040;
+  background: rgba(255, 0, 0, 0.12);
+}
+
+.cc-station-entry-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 320px;
+}
+
+/* Entry digits for 5-char critical code */
+.cc-entry-digit {
+  width: 48px !important;
+  height: 60px !important;
+  font-size: 28px !important;
+}
+
+.cc-entry-digit.filled {
+  border-color: #ff4040 !important;
+  color: #fff !important;
+}
+
+/* Alert shown on non-designated station */
+.cc-station-alert {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ff9090;
+  text-align: center;
+  max-width: 280px;
+  line-height: 1.5;
+  white-space: pre-line;
+  padding: var(--space-md);
+}

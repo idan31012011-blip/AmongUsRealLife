@@ -78,6 +78,10 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
     globalLockdownExpiresAt,
     globalLockdownCooldownUntil,
     globalLockdownUsesLeft,
+    criticalCountdownActive,
+    criticalCountdownExpiresAt,
+    criticalCountdownCooldownUntil,
+    criticalCountdownUsesLeft,
   } = sabotage;
 
   const [, tick] = useState(0);
@@ -92,6 +96,10 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
 
   function triggerLockdown() {
     socket.emit('trigger_global_lockdown', { code: gameCode });
+  }
+
+  function triggerCriticalCountdown() {
+    socket.emit('trigger_critical_countdown', { code: gameCode });
   }
 
   return (
@@ -175,6 +183,42 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
             ) : (
               <button className="btn btn-red btn-large" onClick={triggerLockdown}>
                 {t('globalLockdownBtn')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {settings.criticalCountdownEnabled && (
+          <div className="sabotage-global-section">
+            <div className="settings-section-title" style={{ margin: 0, border: 'none' }}>
+              {t('criticalCountdownSection')}
+            </div>
+
+            <p className="sabotage-uses">
+              {t('usesLeftMsg', criticalCountdownUsesLeft, settings.maxCriticalCountdowns)}
+            </p>
+
+            {criticalCountdownActive ? (
+              <>
+                <span className="sabotage-active-badge">{t('criticalCountdownActiveBadge')}</span>
+                <GlobalCountdown expiresAt={criticalCountdownExpiresAt} />
+              </>
+            ) : criticalCountdownUsesLeft <= 0 ? (
+              <button className="btn btn-red btn-large" disabled style={{ opacity: 0.3 }}>
+                {t('noUsesLeft')}
+              </button>
+            ) : Date.now() < criticalCountdownCooldownUntil ? (
+              <>
+                <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{t('cooldownLabel')}</p>
+                <CooldownRing
+                  cooldownUntil={criticalCountdownCooldownUntil}
+                  totalDuration={settings.criticalCountdownCooldown}
+                  size={60}
+                />
+              </>
+            ) : (
+              <button className="btn btn-red btn-large" onClick={triggerCriticalCountdown}>
+                {t('criticalCountdownBtn')}
               </button>
             )}
           </div>

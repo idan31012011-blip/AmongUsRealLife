@@ -123,6 +123,16 @@ function registerHandlers(io, socket) {
       socket.emit('game_joined', base);
     } else if (player.role === 'station') {
       socket.emit('station_device_ready', { roomName: game.stationRooms.get(socket.id) });
+      // Resend critical countdown code if it's still active for this station
+      if (game.sabotage.criticalCountdownActive && game.sabotage.criticalCountdownCode) {
+        const stationId = getCriticalCountdownStationId(game);
+        if (stationId === socket.id) {
+          socket.emit('critical_countdown_code', {
+            criticalCode: game.sabotage.criticalCountdownCode,
+            expiresAt: game.sabotage.criticalCountdownExpiresAt,
+          });
+        }
+      }
     } else {
       const sabotageForPlayer = player.role === 'imposter'
         ? buildSabotageStatus(game)
@@ -131,6 +141,10 @@ function registerHandlers(io, socket) {
             globalLockdown: {
               active: game.sabotage.globalLockdownActive,
               expiresAt: game.sabotage.globalLockdownExpiresAt,
+            },
+            criticalCountdown: {
+              active: game.sabotage.criticalCountdownActive,
+              expiresAt: game.sabotage.criticalCountdownExpiresAt,
             },
           };
 
@@ -223,11 +237,32 @@ function registerHandlers(io, socket) {
     const mgl = clampInt(settings.maxGlobalLockdowns, 1, 5);
     if (mgl !== null) validated.maxGlobalLockdowns = mgl;
 
+    // Critical countdown
+    if (typeof settings.criticalCountdownEnabled === 'boolean') validated.criticalCountdownEnabled = settings.criticalCountdownEnabled;
+
+    const ccd = clampInt(settings.criticalCountdownDuration, 10000, 120000);
+    if (ccd !== null) validated.criticalCountdownDuration = ccd;
+
+    const ccc = clampInt(settings.criticalCountdownCooldown, 10000, 300000);
+    if (ccc !== null) validated.criticalCountdownCooldown = ccc;
+
+    const mcc = clampInt(settings.maxCriticalCountdowns, 1, 5);
+    if (mcc !== null) validated.maxCriticalCountdowns = mcc;
+
+    if (typeof settings.criticalCountdownStation === 'string' || settings.criticalCountdownStation === null) {
+      validated.criticalCountdownStation = settings.criticalCountdownStation || null;
+    }
+
     Object.assign(game.settings, validated);
 
     // Keep globalLockdownUsesLeft in sync with maxGlobalLockdowns
     if (validated.maxGlobalLockdowns !== undefined) {
       game.sabotage.globalLockdownUsesLeft = validated.maxGlobalLockdowns;
+    }
+
+    // Keep criticalCountdownUsesLeft in sync with maxCriticalCountdowns
+    if (validated.maxCriticalCountdowns !== undefined) {
+      game.sabotage.criticalCountdownUsesLeft = validated.maxCriticalCountdowns;
     }
 
     io.to(code).emit('settings_updated', { settings: game.settings });
@@ -367,8 +402,7 @@ function registerHandlers(io, socket) {
       io.to(game.doctorId).emit('doctor_assigned');
     }
 
-    // Give the imposter their initial sabotage state so globalLockdownUsesLeft
-    // reflects the actual setting (not the client's hardcoded default of 2)
+    // Give the imposter their initial sabotage state so use counts reflect actual settings
     const imposterPlayer = [...game.players.values()].find(p => p.role === 'imposter');
     if (imposterPlayer) {
       io.to(imposterPlayer.id).emit('sabotage_status', buildSabotageStatus(game));
@@ -679,6 +713,70 @@ function registerHandlers(io, socket) {
     socket.emit('sabotage_status', buildSabotageStatus(game));
   });
 
+  socket.on('trigger_critical_countdown', ({ code } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return socket.emit('error', { message: 'Cannot sabotage now.' });
+
+    const imposter = game.players.get(socket.id);
+    if (!imposter || imposter.role !== 'imposter' || !imposter.isAlive) {
+      return socket.emit('error', { message: 'Not allowed.' });
+    }
+    if (!game.settings.sabotageEnabled) return socket.emit('error', { message: 'Sabotage is disabled.' });
+    if (!game.settings.criticalCountdownEnabled) return socket.emit('error', { message: 'Critical Countdown is disabled.' });
+    if (game.sabotage.criticalCountdownActive) return socket.emit('error', { message: 'Critical Countdown already active.' });
+    if (Date.now() < game.sabotage.criticalCountdownCooldownUntil) {
+      return socket.emit('error', { message: 'Critical Countdown on cooldown.' });
+    }
+    if (game.sabotage.criticalCountdownUsesLeft <= 0) {
+      return socket.emit('error', { message: 'No Critical Countdown uses remaining.' });
+    }
+
+    const stationId = getCriticalCountdownStationId(game);
+    if (!stationId) return socket.emit('error', { message: 'No station available for Critical Countdown.' });
+    const stationRoom = game.stationRooms.get(stationId);
+
+    const now = Date.now();
+    const expiresAt = now + game.settings.criticalCountdownDuration;
+    const criticalCode = generateCriticalCode();
+
+    game.sabotage.criticalCountdownActive = true;
+    game.sabotage.criticalCountdownExpiresAt = expiresAt;
+    game.sabotage.criticalCountdownUsesLeft -= 1;
+    game.sabotage.criticalCountdownCode = criticalCode;
+    game.sabotage.criticalCountdownTimeoutId = setTimeout(() => {
+      const g = getGame(code);
+      if (g && g.sabotage.criticalCountdownActive) {
+        g.sabotage.criticalCountdownActive = false;
+        g.sabotage.criticalCountdownExpiresAt = null;
+        g.sabotage.criticalCountdownCode = null;
+        g.sabotage.criticalCountdownTimeoutId = null;
+        endGame(io, g, { winner: 'imposter', reason: 'critical_countdown_expired' });
+      }
+    }, game.settings.criticalCountdownDuration);
+
+    // Broadcast alert to everyone (no code)
+    io.to(code).emit('critical_countdown_started', { expiresAt, stationRoom });
+
+    // Send the code only to the designated station device
+    io.to(stationId).emit('critical_countdown_code', { criticalCode, expiresAt });
+
+    // Update imposter's sabotage status
+    socket.emit('sabotage_status', buildSabotageStatus(game));
+  });
+
+  socket.on('critical_countdown_submit', ({ code, enteredCode } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return;
+    if (!game.stations.has(socket.id)) return;
+    if (!game.sabotage.criticalCountdownActive) return;
+
+    if (String(enteredCode) !== String(game.sabotage.criticalCountdownCode)) {
+      return socket.emit('critical_countdown_wrong_code');
+    }
+
+    endCriticalCountdown(io, game);
+  });
+
   // ─── MEETINGS ─────────────────────────────────────────────────────────────
 
   socket.on('report_body', ({ code, bodyId } = {}) => {
@@ -687,6 +785,10 @@ function registerHandlers(io, socket) {
 
     const reporter = game.players.get(socket.id);
     if (!reporter || !reporter.isAlive) return socket.emit('error', { message: 'Not allowed.' });
+
+    if (game.sabotage.criticalCountdownActive) {
+      return socket.emit('error', { message: 'Cannot report a body during Critical Countdown.' });
+    }
 
     const body = game.players.get(bodyId);
     if (!body || body.isAlive) return socket.emit('error', { message: 'Invalid body.' });
@@ -707,7 +809,10 @@ function registerHandlers(io, socket) {
       return socket.emit('error', { message: 'Meetings must be called from a station.' });
     }
 
-    // Block emergency meetings during a global lockdown
+    // Block during active sabotages
+    if (game.sabotage.criticalCountdownActive) {
+      return socket.emit('error', { message: 'Cannot call a meeting during Critical Countdown.' });
+    }
     if (game.sabotage.globalLockdownActive) {
       return socket.emit('error', { message: 'Cannot call a meeting during a lockdown.' });
     }
@@ -730,7 +835,8 @@ function registerHandlers(io, socket) {
     if (!player || player.isAlive) return;
     if (game.stations.has(socket.id)) return;
 
-    // Block if any window is already active
+    // Block if critical countdown is active or if any report window is already active
+    if (game.sabotage.criticalCountdownActive) return;
     if (game.bodyReportWindow && Date.now() < game.bodyReportWindow.expiresAt) return;
 
     if (game.bodyReportWindow?.timeoutId) clearTimeout(game.bodyReportWindow.timeoutId);
@@ -759,6 +865,10 @@ function registerHandlers(io, socket) {
     if (!reporter || !reporter.isAlive) return socket.emit('error', { message: 'Not allowed.' });
     if (game.stations.has(socket.id)) return socket.emit('error', { message: 'Not allowed.' });
 
+    if (game.sabotage.criticalCountdownActive) {
+      return socket.emit('error', { message: 'Cannot report a body during Critical Countdown.' });
+    }
+
     const win = game.bodyReportWindow;
     if (!win || Date.now() > win.expiresAt) {
       return socket.emit('error', { message: 'No active report window.' });
@@ -783,6 +893,7 @@ function registerHandlers(io, socket) {
 
     if (!game.stations.has(socket.id)) return socket.emit('error', { message: 'Not allowed.' });
     if (!(game.stationMeetingEnabled.get(socket.id) ?? false)) return socket.emit('error', { message: 'This station does not have meeting privileges.' });
+    if (game.sabotage.criticalCountdownActive) return socket.emit('error', { message: 'Cannot call a meeting during Critical Countdown.' });
     if (game.sabotage.globalLockdownActive) return socket.emit('error', { message: 'Cannot call a meeting during a lockdown.' });
 
     game.meetingHasOccurred = true;
@@ -846,6 +957,9 @@ function registerHandlers(io, socket) {
     if (game.sabotage.globalLockdownTimeoutId) {
       clearTimeout(game.sabotage.globalLockdownTimeoutId);
     }
+    if (game.sabotage.criticalCountdownTimeoutId) {
+      clearTimeout(game.sabotage.criticalCountdownTimeoutId);
+    }
 
     if (game.bodyReportWindow?.timeoutId) clearTimeout(game.bodyReportWindow.timeoutId);
 
@@ -871,6 +985,12 @@ function registerHandlers(io, socket) {
       globalLockdownCooldownUntil: 0,
       globalLockdownUsesLeft: game.settings.maxGlobalLockdowns,
       globalLockdownTimeoutId: null,
+      criticalCountdownActive: false,
+      criticalCountdownExpiresAt: null,
+      criticalCountdownCooldownUntil: 0,
+      criticalCountdownUsesLeft: game.settings.maxCriticalCountdowns,
+      criticalCountdownCode: null,
+      criticalCountdownTimeoutId: null,
     };
 
     for (const player of game.players.values()) {
@@ -1001,7 +1121,46 @@ function buildSabotageStatus(game) {
       cooldownUntil: game.sabotage.globalLockdownCooldownUntil,
       usesLeft: game.sabotage.globalLockdownUsesLeft,
     },
+    criticalCountdown: {
+      active: game.sabotage.criticalCountdownActive,
+      expiresAt: game.sabotage.criticalCountdownExpiresAt,
+      cooldownUntil: game.sabotage.criticalCountdownCooldownUntil,
+      usesLeft: game.sabotage.criticalCountdownUsesLeft,
+    },
   };
+}
+
+function generateCriticalCode() {
+  return String(Math.floor(10000 + Math.random() * 90000));
+}
+
+function getCriticalCountdownStationId(game) {
+  const stationIds = [...game.stationRooms.keys()];
+  if (stationIds.length === 0) return null;
+  if (stationIds.length === 1) return stationIds[0];
+  if (game.settings.criticalCountdownStation) {
+    for (const [id, room] of game.stationRooms) {
+      if (room === game.settings.criticalCountdownStation) return id;
+    }
+  }
+  return stationIds[0];
+}
+
+function endCriticalCountdown(io, game) {
+  if (!game.sabotage.criticalCountdownActive) return;
+  if (game.sabotage.criticalCountdownTimeoutId) {
+    clearTimeout(game.sabotage.criticalCountdownTimeoutId);
+    game.sabotage.criticalCountdownTimeoutId = null;
+  }
+  game.sabotage.criticalCountdownActive = false;
+  game.sabotage.criticalCountdownExpiresAt = null;
+  game.sabotage.criticalCountdownCode = null;
+  game.sabotage.criticalCountdownCooldownUntil = Date.now() + game.settings.criticalCountdownCooldown;
+
+  const imposter = [...game.players.values()].find(p => p.role === 'imposter');
+  if (imposter) io.to(imposter.id).emit('sabotage_status', buildSabotageStatus(game));
+
+  io.to(game.code).emit('critical_countdown_success');
 }
 
 function unlockRoom(io, game, roomName) {

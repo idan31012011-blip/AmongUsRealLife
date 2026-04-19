@@ -24,6 +24,20 @@ function RoomLockTimer({ expiresAt }) {
   return <span className="locked-room-timer">{secs}s</span>;
 }
 
+// Full-screen countdown timer for the critical countdown overlay
+function CriticalCountdownTimer({ expiresAt }) {
+  const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
+  useEffect(() => {
+    const tick = setInterval(() => {
+      const s = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setSecs(s);
+      if (s <= 0) clearInterval(tick);
+    }, 250);
+    return () => clearInterval(tick);
+  }, [expiresAt]);
+  return <div className="cc-overlay-timer">{secs}</div>;
+}
+
 // Countdown shown next to the Meeting button during global lockdown
 function GlobalLockTimer({ expiresAt }) {
   const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
@@ -84,7 +98,7 @@ export default function GameScreen() {
   }
 
   function callEmergency() {
-    if (sabotage.globalLockdownActive) return;
+    if (sabotage.globalLockdownActive || sabotage.criticalCountdownActive) return;
     socket.emit('call_emergency', { code: gameCode });
   }
 
@@ -106,9 +120,10 @@ export default function GameScreen() {
   const myPlayer = players.find(p => p.id === myId);
   const isLocked = isDead && !myPlayer?.bodyFound;
   const lockdownActive = sabotage.globalLockdownActive;
+  const criticalCountdownActive = sabotage.criticalCountdownActive;
   const showAsImposter = isImposter && !disguised;
   const stationsMode = settings.stationsEnabled && (state.stationAssignments ?? []).some(s => s.hasMeeting);
-  const reportWindowActive = stationsMode && reportBodyWindowEnd != null && Date.now() < reportBodyWindowEnd;
+  const reportWindowActive = stationsMode && reportBodyWindowEnd != null && Date.now() < reportBodyWindowEnd && !criticalCountdownActive;
 
   return (
     <div className={`screen game-screen ${isDead ? 'dead-screen' : ''}`}>
@@ -175,22 +190,22 @@ export default function GameScreen() {
 
           {stationsMode ? (
             <button
-              className={`btn-action btn-report-body ${!reportWindowActive ? 'btn-disabled' : ''}`}
+              className={`btn-action btn-report-body ${(!reportWindowActive || criticalCountdownActive) ? 'btn-disabled' : ''}`}
               onClick={reportBodyInWindow}
-              disabled={!reportWindowActive}
+              disabled={!reportWindowActive || criticalCountdownActive}
             >
-              <span className="btn-action-icon">🔴</span>
+              <span className="btn-action-icon">{criticalCountdownActive ? '💥' : '🔴'}</span>
               <span className="btn-action-label">{t('reportBodyBtn')}</span>
-              {reportWindowActive && <ReportBodyTimer expiresAt={reportBodyWindowEnd} />}
+              {reportWindowActive && !criticalCountdownActive && <ReportBodyTimer expiresAt={reportBodyWindowEnd} />}
             </button>
           ) : (
             <button
-              className={`btn-action btn-emergency ${lockdownActive ? 'btn-locked btn-disabled' : ''}`}
+              className={`btn-action btn-emergency ${(lockdownActive || criticalCountdownActive) ? 'btn-locked btn-disabled' : ''}`}
               onClick={callEmergency}
-              disabled={lockdownActive}
+              disabled={lockdownActive || criticalCountdownActive}
             >
-              <span className="btn-action-icon">{lockdownActive ? '🔒' : '🚨'}</span>
-              <span className="btn-action-label">{lockdownActive ? t('lockedBtn') : t('meetingBtn')}</span>
+              <span className="btn-action-icon">{(lockdownActive || criticalCountdownActive) ? '🔒' : '🚨'}</span>
+              <span className="btn-action-label">{(lockdownActive || criticalCountdownActive) ? t('lockedBtn') : t('meetingBtn')}</span>
               {lockdownActive && sabotage.globalLockdownExpiresAt && (
                 <GlobalLockTimer expiresAt={sabotage.globalLockdownExpiresAt} />
               )}
@@ -304,6 +319,19 @@ export default function GameScreen() {
 
       {/* Doctor monitor */}
       {showMonitor && <MonitorMenu onClose={() => setShowMonitor(false)} />}
+
+      {/* Critical Countdown overlay — shown to ALL players */}
+      {criticalCountdownActive && sabotage.criticalCountdownExpiresAt && (
+        <div className="cc-overlay">
+          <div className="cc-overlay-title">{t('criticalCountdownOverlayTitle')}</div>
+          <CriticalCountdownTimer expiresAt={sabotage.criticalCountdownExpiresAt} />
+          <div className="cc-overlay-subtitle">
+            {isImposter
+              ? t('criticalCountdownImposterSubtitle')
+              : t('criticalCountdownOverlaySubtitle', sabotage.criticalCountdownStationRoom ?? '?')}
+          </div>
+        </div>
+      )}
 
       {/* Station disconnect banner */}
       {pendingStationNotice && (
