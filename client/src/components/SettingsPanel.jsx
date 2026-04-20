@@ -358,7 +358,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
           </p>
         )}
 
-        {local.stationsEnabled && (activePlayers ?? []).length >= 4 && (() => {
+        {settings.stationsEnabled && (activePlayers ?? []).length >= 4 && (() => {
           const assignments = stationAssignments ?? [];
           const stationPlayerIds = new Set(assignments.map(s => s.playerId));
           const stationRoomNames = new Set(assignments.map(s => s.roomName));
