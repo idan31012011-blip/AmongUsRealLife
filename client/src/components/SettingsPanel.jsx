@@ -69,8 +69,10 @@ function Toggle({ checked, onChange, disabled }) {
   );
 }
 
-export default function SettingsPanel({ isManager, settings, rooms, gameCode, onClose, playerCount, stationAssignments }) {
+export default function SettingsPanel({ isManager, settings, rooms, gameCode, onClose, playerCount, stationAssignments, activePlayers, myId }) {
   const { t } = useLanguage();
+  const [assignPlayerId, setAssignPlayerId] = useState('');
+  const [assignRoomName, setAssignRoomName] = useState('');
 
   const [local, setLocal] = useState({
     killCooldown: toSec(settings.killCooldown),
@@ -355,6 +357,97 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
             {t('stationsNeedPlayers')}
           </p>
         )}
+
+        {local.stationsEnabled && (activePlayers ?? []).length >= 4 && (() => {
+          const assignments = stationAssignments ?? [];
+          const stationPlayerIds = new Set(assignments.map(s => s.playerId));
+          const stationRoomNames = new Set(assignments.map(s => s.roomName));
+          const maxStations = (activePlayers ?? []).length - 3;
+          const canAdd = isManager && assignments.length < maxStations;
+          const availPlayers = (activePlayers ?? []).filter(p => !stationPlayerIds.has(p.id) && p.id !== myId);
+          const availRooms = rooms.filter(r => !stationRoomNames.has(r));
+
+          function assignStation() {
+            if (!assignPlayerId || !assignRoomName) return;
+            socket.emit('assign_station', { code: gameCode, playerId: assignPlayerId, roomName: assignRoomName });
+            setAssignPlayerId('');
+            setAssignRoomName('');
+          }
+          function unassignStation(playerId) {
+            socket.emit('unassign_station', { code: gameCode, playerId });
+          }
+          function toggleStationMeeting(playerId, hasMeeting) {
+            socket.emit('set_station_meeting', { code: gameCode, playerId, hasMeeting });
+          }
+
+          return (
+            <div className="station-assignment-panel" style={{ marginTop: 12 }}>
+              <div className="station-panel-header">
+                <span className="label">{t('stationAssignmentTitle')}</span>
+                {isManager && <span className="label-dim">{t('maxStationsInfo', maxStations)}</span>}
+              </div>
+
+              {assignments.length === 0 && (
+                <p className="station-no-assignments">{t('noStationsAssigned')}</p>
+              )}
+
+              {assignments.map(s => (
+                <div key={s.playerId} className="station-assignment-row">
+                  <span className="station-assignment-name">{s.playerName}</span>
+                  <span className="badge">{s.roomName}</span>
+                  {isManager ? (
+                    <>
+                      <span className="station-meeting-emoji" title={t('stationMeetingToggleLabel')}>🚨</span>
+                      <label className="settings-toggle">
+                        <input
+                          type="checkbox"
+                          checked={s.hasMeeting ?? false}
+                          onChange={e => toggleStationMeeting(s.playerId, e.target.checked)}
+                        />
+                        <span className="settings-toggle-track" />
+                      </label>
+                      <button className="btn-kick" onClick={() => unassignStation(s.playerId)}>✕</button>
+                    </>
+                  ) : (
+                    s.hasMeeting && <span className="badge">🚨</span>
+                  )}
+                </div>
+              ))}
+
+              {canAdd && availPlayers.length > 0 && availRooms.length > 0 && (
+                <div className="station-assign-form">
+                  <select
+                    className="input station-select"
+                    value={assignPlayerId}
+                    onChange={e => setAssignPlayerId(e.target.value)}
+                  >
+                    <option value="">{t('selectPlayerPlaceholder')}</option>
+                    {availPlayers.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="input station-select"
+                    value={assignRoomName}
+                    onChange={e => setAssignRoomName(e.target.value)}
+                  >
+                    <option value="">{t('selectRoomPlaceholder')}</option>
+                    {availRooms.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                  <button
+                    className="btn btn-blue btn-small"
+                    onClick={assignStation}
+                    disabled={!assignPlayerId || !assignRoomName}
+                  >
+                    {t('assignStationBtn')}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── Doctor ──────────────────────────────────────────────────── */}
         <div className="settings-section-title" style={{ marginTop: 20 }}>{t('settingsDoctor')}</div>
