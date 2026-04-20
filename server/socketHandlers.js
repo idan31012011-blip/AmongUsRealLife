@@ -34,11 +34,17 @@ function registerHandlers(io, socket) {
 
     const trimmedName = name.trim().slice(0, 20);
 
-    // Reject duplicate names
-    for (const p of game.players.values()) {
-      if (p.name.toLowerCase() === trimmedName.toLowerCase() && !p.disconnected) {
-        return socket.emit('error', { message: 'Name already taken.' });
+    // Reject duplicate names, but allow taking over a disconnected slot
+    let oldDisconnectedId = null;
+    for (const [existingId, p] of game.players) {
+      if (p.name.toLowerCase() === trimmedName.toLowerCase()) {
+        if (!p.disconnected) return socket.emit('error', { message: 'Name already taken.' });
+        oldDisconnectedId = existingId;
       }
+    }
+    if (oldDisconnectedId) {
+      game.players.delete(oldDisconnectedId);
+      if (game.managerId === oldDisconnectedId) game.managerId = socket.id;
     }
 
     const player = {
@@ -1025,11 +1031,12 @@ function registerHandlers(io, socket) {
 
     if (game.phase === 'lobby') {
       if (player) {
-        game.players.delete(socket.id);
+        // Keep the player record so rejoin_game can restore them and update managerId
+        player.disconnected = true;
         io.to(game.code).emit('player_left', { playerId: socket.id });
       }
-      // If manager left lobby with no players, clean up
-      if (game.players.size === 0) deleteGame(game.code);
+      const hasConnected = [...game.players.values()].some(p => !p.disconnected);
+      if (!hasConnected) deleteGame(game.code);
       return;
     }
 
