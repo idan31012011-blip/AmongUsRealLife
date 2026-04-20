@@ -166,7 +166,7 @@ export default function StationScreen() {
         {expiresAt && <CriticalCountdownTimer expiresAt={expiresAt} />}
         <div className="cc-station-code-section">
           <p className="cc-station-code-label">{t('criticalCountdownCodePrompt')}</p>
-          <div className="cc-code-display">
+          <div className="cc-code-display" dir="ltr">
             {criticalCode.split('').map((ch, i) => (
               <span key={i} className="cc-code-show-digit">{ch}</span>
             ))}
@@ -174,7 +174,7 @@ export default function StationScreen() {
         </div>
         <div className="cc-station-entry-section">
           <p className="cc-station-code-label">{t('criticalCountdownEntryPrompt')}</p>
-          <div className="station-code-display">
+          <div className="station-code-display" dir="ltr">
             {ccEntered.padEnd(5, '_').split('').map((ch, i) => (
               <span key={i} className={`station-code-digit cc-entry-digit ${ch !== '_' ? 'filled' : ''}`}>{ch}</span>
             ))}
