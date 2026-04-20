@@ -64,6 +64,12 @@ function registerHandlers(io, socket) {
     socket.join(code);
     socketMeta.set(socket.id, { gameCode: code, name: trimmedName });
 
+    // Cancel any pending lobby cleanup
+    if (game.lobbyCleanupTimeout) {
+      clearTimeout(game.lobbyCleanupTimeout);
+      game.lobbyCleanupTimeout = null;
+    }
+
     // Send full lobby state to the joining player
     socket.emit('game_joined', {
       code,
@@ -113,6 +119,12 @@ function registerHandlers(io, socket) {
     socket.join(code);
     socketMeta.set(socket.id, { gameCode: code, name: trimmedName });
 
+    // Cancel any pending lobby cleanup
+    if (game.lobbyCleanupTimeout) {
+      clearTimeout(game.lobbyCleanupTimeout);
+      game.lobbyCleanupTimeout = null;
+    }
+
     // Restore state based on current phase
     const base = {
       code,
@@ -126,7 +138,11 @@ function registerHandlers(io, socket) {
     };
 
     if (game.phase === 'lobby') {
-      socket.emit('game_joined', base);
+      socket.emit('game_joined', { ...base, stationAssignments: buildStationList(game) });
+      // Tell other lobby members this player is back (with new socket ID)
+      socket.to(code).emit('player_joined', {
+        player: { id: socket.id, name: player.name, isAlive: true, bodyFound: false, votedOut: false, disconnected: false },
+      });
     } else if (player.role === 'station') {
       socket.emit('station_device_ready', { roomName: game.stationRooms.get(socket.id) });
       // Resend critical countdown code if it's still active for this station
@@ -1031,12 +1047,20 @@ function registerHandlers(io, socket) {
 
     if (game.phase === 'lobby') {
       if (player) {
-        // Keep the player record so rejoin_game can restore them and update managerId
         player.disconnected = true;
         io.to(game.code).emit('player_left', { playerId: socket.id });
       }
       const hasConnected = [...game.players.values()].some(p => !p.disconnected);
-      if (!hasConnected) deleteGame(game.code);
+      if (!hasConnected && !game.lobbyCleanupTimeout) {
+        // Give 60s for players to reconnect before deleting the game
+        game.lobbyCleanupTimeout = setTimeout(() => {
+          const g = getGame(game.code);
+          if (!g) return;
+          g.lobbyCleanupTimeout = null;
+          const stillHasConnected = [...g.players.values()].some(p => !p.disconnected);
+          if (!stillHasConnected) deleteGame(g.code);
+        }, 60000);
+      }
       return;
     }
 

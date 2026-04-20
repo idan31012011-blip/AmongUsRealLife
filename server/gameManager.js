@@ -27,6 +27,7 @@ function createGame({ managerId, rooms, settings }) {
     playerCodes: new Map(),           // Map<playerId, '3-digit string'>
     doctorId: null,                   // playerId of the doctor (sub-role)
     bodyReportWindow: null,           // { bodyId, expiresAt, imposterOnly, timeoutId } | null
+    lobbyCleanupTimeout: null,        // setTimeout handle — deferred cleanup when lobby empties
     settings: {
       killCooldown:           settings?.killCooldown           ?? 20000,
       taskHoldDuration:       settings?.taskHoldDuration       ?? 20000,
@@ -76,6 +77,7 @@ function getGame(code) {
 function deleteGame(code) {
   const game = games.get(code);
   if (game) {
+    if (game.lobbyCleanupTimeout) clearTimeout(game.lobbyCleanupTimeout);
     if (game.votingTimeout) clearTimeout(game.votingTimeout);
     for (const { timeoutId } of game.sabotage.lockedRooms.values()) {
       if (timeoutId) clearTimeout(timeoutId);
