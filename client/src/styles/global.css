@@ -298,6 +298,7 @@ input {
 /* ── Lobby screen ────────────────────────────────────────────────────────── */
 .lobby-screen {
   gap: var(--space-md);
+  overflow-y: auto;
 }
 
 .lobby-header {
@@ -390,8 +391,6 @@ input {
 }
 
 .player-list {
-  flex: 1;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
