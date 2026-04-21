@@ -88,6 +88,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
     globalLockdownCooldown: toSec(settings.globalLockdownCooldown),
     maxGlobalLockdowns: settings.maxGlobalLockdowns,
     stationsEnabled: settings.stationsEnabled ?? false,
+    stationMiniGames: settings.stationMiniGames ?? ['simon', 'stopbar', 'wireconnect'],
     doctorEnabled: settings.doctorEnabled ?? false,
     criticalCountdownEnabled: settings.criticalCountdownEnabled ?? false,
     criticalCountdownDuration: toSec(settings.criticalCountdownDuration ?? 40000),
@@ -120,6 +121,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
       globalLockdownCooldown: toSec(settings.globalLockdownCooldown),
       maxGlobalLockdowns: settings.maxGlobalLockdowns,
       stationsEnabled: settings.stationsEnabled ?? false,
+      stationMiniGames: settings.stationMiniGames ?? ['simon', 'stopbar', 'wireconnect'],
       doctorEnabled: settings.doctorEnabled ?? false,
       criticalCountdownEnabled: settings.criticalCountdownEnabled ?? false,
       criticalCountdownDuration: toSec(settings.criticalCountdownDuration ?? 40000),
@@ -184,6 +186,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
         globalLockdownCooldown: toMs(local.globalLockdownCooldown),
         maxGlobalLockdowns: parseInt(local.maxGlobalLockdowns, 10),
         stationsEnabled: local.stationsEnabled,
+        stationMiniGames: local.stationMiniGames,
         doctorEnabled: local.doctorEnabled,
         criticalCountdownEnabled: local.criticalCountdownEnabled,
         criticalCountdownDuration: toMs(local.criticalCountdownDuration),
@@ -356,6 +359,39 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
           <p className="settings-sublabel" style={{ marginTop: 4, textAlign: 'right', color: 'var(--color-text-dim)' }}>
             {t('stationsNeedPlayers')}
           </p>
+        )}
+
+        {local.stationsEnabled && (
+          <div className="mini-games-row">
+            <span className="settings-label">{t('stationMiniGamesLabel')}</span>
+            <div className="mini-games-list">
+              {[
+                { key: 'simon',       label: t('miniGameSimon') },
+                { key: 'stopbar',     label: t('miniGameStopBar') },
+                { key: 'wireconnect', label: t('miniGameWireConnect') },
+              ].map(({ key, label }) => {
+                const isOn   = local.stationMiniGames.includes(key);
+                const isOnly = local.stationMiniGames.length === 1 && isOn;
+                return (
+                  <label key={key} className="mini-game-check">
+                    <input
+                      type="checkbox"
+                      checked={isOn}
+                      disabled={ro || isOnly}
+                      onChange={() => {
+                        if (!isOn) {
+                          set('stationMiniGames', [...local.stationMiniGames, key]);
+                        } else if (!isOnly) {
+                          set('stationMiniGames', local.stationMiniGames.filter(g => g !== key));
+                        }
+                      }}
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {settings.stationsEnabled && (activePlayers ?? []).length >= 4 && (() => {

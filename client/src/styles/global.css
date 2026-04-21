@@ -2651,6 +2651,152 @@ input {
 .station-result-success .station-result-icon { color: var(--color-green); }
 .station-result-done .station-result-icon { color: var(--color-blue); }
 
+/* ── Stop the Bar mini-game ─────────────────────────────────────────────── */
+.stopbar-game {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 360px;
+  padding: 0 var(--space-md);
+}
+
+.stopbar-status {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: center;
+  min-height: 20px;
+}
+
+.stopbar-track {
+  position: relative;
+  width: 100%;
+  height: 64px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.stopbar-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(29,185,84,0.3);
+  border-left: 2px solid #1db954;
+  border-right: 2px solid #1db954;
+}
+
+.stopbar-bar {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  background: var(--color-red);
+  border-radius: 5px;
+  transition: background 0.15s;
+}
+
+.stopbar-bar.bar-done { background: #1db954; }
+.stopbar-bar.bar-miss { background: #f0c030; }
+
+.stopbar-tap-btn {
+  width: 100%;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 3px;
+}
+
+/* ── Wire Connect mini-game ──────────────────────────────────────────────── */
+.wire-game {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.wire-instruction {
+  font-size: 14px;
+  color: var(--color-text-dim);
+  text-align: center;
+}
+
+.wire-board {
+  position: relative;
+}
+
+.wire-peg {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.25);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color 0.12s, box-shadow 0.12s, opacity 0.15s;
+}
+
+.wire-peg-red    { background: #c0392b; }
+.wire-peg-blue   { background: #1a7fe0; }
+.wire-peg-green  { background: #1db954; }
+.wire-peg-yellow { background: #f0c030; }
+
+.wire-peg.wire-selected {
+  border-color: #fff;
+  border-width: 4px;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.25);
+}
+
+.wire-peg.wire-done {
+  opacity: 0.45;
+  border-color: rgba(255,255,255,0.1);
+  cursor: default;
+}
+
+.wire-peg.wire-available {
+  border-color: rgba(255,255,255,0.5);
+}
+
+.wire-peg.wire-wrong {
+  animation: wireShake 0.35s ease;
+}
+
+@keyframes wireShake {
+  0%,100% { transform: translateX(0); }
+  25%      { transform: translateX(-6px); }
+  75%      { transform: translateX(6px); }
+}
+
+/* ── Mini-game selector in Settings ─────────────────────────────────────── */
+.mini-games-row {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(42,42,74,0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mini-games-list {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mini-game-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.mini-game-check input {
+  cursor: pointer;
+  accent-color: var(--color-blue);
+  width: 16px;
+  height: 16px;
+}
+
 /* Simon Says game */
 .simon-game {
   display: flex;

@@ -25,6 +25,8 @@ function createGame({ managerId, rooms, settings }) {
     stationRooms: new Map(),          // Map<playerId, roomName>
     stationMeetingEnabled: new Map(), // Map<playerId, boolean>
     playerCodes: new Map(),           // Map<playerId, '3-digit string'>
+    playerMiniGameHistory: new Map(), // Map<playerId, Set<miniGame>> — completed mini-games per player
+    pendingMiniGames: new Map(),      // Map<playerId, miniGame> — assigned but not yet completed
     doctorId: null,                   // playerId of the doctor (sub-role)
     bodyReportWindow: null,           // { bodyId, expiresAt, imposterOnly, timeoutId } | null
     lobbyCleanupTimeout: null,        // setTimeout handle — deferred cleanup when lobby empties
@@ -42,6 +44,7 @@ function createGame({ managerId, rooms, settings }) {
       globalLockdownCooldown:       settings?.globalLockdownCooldown       ?? 120000,
       maxGlobalLockdowns:           settings?.maxGlobalLockdowns           ?? 2,
       stationsEnabled:              settings?.stationsEnabled              ?? false,
+      stationMiniGames:             settings?.stationMiniGames             ?? ['simon', 'stopbar', 'wireconnect'],
       doctorEnabled:                settings?.doctorEnabled                ?? false,
       criticalCountdownEnabled:     settings?.criticalCountdownEnabled     ?? false,
       criticalCountdownDuration:    settings?.criticalCountdownDuration    ?? 40000,

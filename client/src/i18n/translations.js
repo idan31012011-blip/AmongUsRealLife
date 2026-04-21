@@ -232,6 +232,15 @@ export const translations = {
     simonAbortBtn: 'Abort Task',
     simonAbortCooldown: (secs) => `Cooldown — try again in ${secs}s`,
     stationRoomLocked: 'This room is locked — try again later',
+    stationMiniGamesLabel: 'Mini-games',
+    miniGameSimon: 'Simon Says',
+    miniGameStopBar: 'Stop the Bar',
+    miniGameWireConnect: 'Wire Connect',
+    stopBarInstruction: 'Tap when the bar is in the green zone!',
+    stopBarTap: 'TAP!',
+    stopBarHit: '✓ In the zone!',
+    stopBarMiss: 'Missed! Try again…',
+    wireInstruction: 'Connect matching wires',
 
     // Doctor
     settingsDoctor: 'Doctor',
@@ -471,6 +480,15 @@ export const translations = {
     simonAbortBtn: 'בטל משימה',
     simonAbortCooldown: (secs) => `זמן קירור — נסה שוב בעוד ${secs}ש'`,
     stationRoomLocked: 'החדר נעול — נסה שוב מאוחר יותר',
+    stationMiniGamesLabel: 'מיני-משחקים',
+    miniGameSimon: 'סיימון אומר',
+    miniGameStopBar: 'עצור את הפס',
+    miniGameWireConnect: 'חיבור חוטים',
+    stopBarInstruction: 'לחץ כשהפס בתוך האזור הירוק!',
+    stopBarTap: 'לחץ!',
+    stopBarHit: '✓ פגעת!',
+    stopBarMiss: 'פספסת! נסה שוב…',
+    wireInstruction: 'חבר את החוטים התואמים',
 
     // Doctor
     settingsDoctor: 'רופא',

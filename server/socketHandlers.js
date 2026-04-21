@@ -275,6 +275,11 @@ function registerHandlers(io, socket) {
       validated.criticalCountdownStation = settings.criticalCountdownStation || null;
     }
 
+    if (Array.isArray(settings.stationMiniGames)) {
+      const valid = settings.stationMiniGames.filter(g => ['simon', 'stopbar', 'wireconnect'].includes(g));
+      if (valid.length > 0) validated.stationMiniGames = valid;
+    }
+
     Object.assign(game.settings, validated);
 
     // Keep globalLockdownUsesLeft in sync with maxGlobalLockdowns
@@ -555,11 +560,23 @@ function registerHandlers(io, socket) {
       return socket.emit('station_code_result', { valid: false, reason: 'already_completed', playerName: player.name });
     }
 
+    // Pick mini-game, avoiding repeats for this player
+    const enabledGames = game.settings.stationMiniGames ?? ['simon'];
+    const history = game.playerMiniGameHistory.get(foundPlayerId) ?? new Set();
+    let available = enabledGames.filter(g => !history.has(g));
+    if (available.length === 0) {
+      game.playerMiniGameHistory.set(foundPlayerId, new Set());
+      available = [...enabledGames];
+    }
+    const miniGame = available[Math.floor(Math.random() * available.length)];
+    game.pendingMiniGames.set(foundPlayerId, miniGame);
+
     socket.emit('station_code_result', {
       valid: true,
       playerName: player.name,
       playerId: foundPlayerId,
       taskId: stationTask.id,
+      miniGame,
     });
   });
 
@@ -580,6 +597,15 @@ function registerHandlers(io, socket) {
     );
 
     if (!stationTask || stationTask.completed) return;
+
+    // Track which mini-game this player completed
+    const completedMiniGame = game.pendingMiniGames.get(playerId);
+    game.pendingMiniGames.delete(playerId);
+    if (completedMiniGame) {
+      const history = game.playerMiniGameHistory.get(playerId) ?? new Set();
+      history.add(completedMiniGame);
+      game.playerMiniGameHistory.set(playerId, history);
+    }
 
     stationTask.completed = true;
     player.tasksCompleted.add(stationTask.id);

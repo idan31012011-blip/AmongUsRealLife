@@ -3,6 +3,8 @@ import { useGame } from '../context/GameContext';
 import { useLanguage } from '../context/LanguageContext';
 import socket from '../socket';
 import SimonSaysGame from './SimonSaysGame';
+import StopTheBarGame from './StopTheBarGame';
+import WireConnectGame from './WireConnectGame';
 
 function CriticalCountdownTimer({ expiresAt }) {
   const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
@@ -22,7 +24,8 @@ export default function StationScreen() {
   const { t } = useLanguage();
   const { gameCode, stationRoom, stationHasMeeting } = state;
 
-  const [uiPhase, setUiPhase] = useState('idle'); // 'idle' | 'entry' | 'simon' | 'success' | 'already_done'
+  const [uiPhase, setUiPhase] = useState('idle'); // 'idle' | 'entry' | 'minigame' | 'success' | 'already_done'
+  const [currentMiniGame, setCurrentMiniGame] = useState(null); // 'simon' | 'stopbar' | 'wireconnect'
   const [enteredCode, setEnteredCode] = useState('');
   const [currentPlayerId, setCurrentPlayerId] = useState(null);
   const [currentPlayerName, setCurrentPlayerName] = useState(null);
@@ -42,7 +45,7 @@ export default function StationScreen() {
     || (state.sabotage?.globalLockdownActive ?? false);
 
   useEffect(() => {
-    function onCodeResult({ valid, reason, playerName, playerId }) {
+    function onCodeResult({ valid, reason, playerName, playerId, miniGame }) {
       if (valid) {
         const cooldownUntil = abortCooldowns[playerId] ?? 0;
         if (Date.now() < cooldownUntil) {
@@ -54,7 +57,8 @@ export default function StationScreen() {
         }
         setCurrentPlayerName(playerName);
         setCurrentPlayerId(playerId);
-        setUiPhase('simon');
+        setCurrentMiniGame(miniGame ?? 'simon');
+        setUiPhase('minigame');
         setErrorMsg(null);
       } else if (reason === 'already_completed') {
         setCurrentPlayerName(playerName);
@@ -141,14 +145,15 @@ export default function StationScreen() {
     socket.emit('station_validate_code', { code: gameCode, enteredCode });
   }
 
-  function handleSimonSuccess() {
+  function handleMiniGameSuccess() {
     socket.emit('station_task_complete', { code: gameCode, playerId: currentPlayerId });
   }
 
-  function abortSimon() {
+  function abortMiniGame() {
     setAbortCooldowns(prev => ({ ...prev, [currentPlayerId]: Date.now() + 60000 }));
     setCurrentPlayerId(null);
     setCurrentPlayerName(null);
+    setCurrentMiniGame(null);
     setUiPhase('idle');
     setEnteredCode('');
   }
@@ -231,10 +236,18 @@ export default function StationScreen() {
         </button>
       )}
 
-      {uiPhase === 'simon' ? (
+      {uiPhase === 'minigame' ? (
         <>
-          <SimonSaysGame playerName={currentPlayerName} onSuccess={handleSimonSuccess} />
-          <button className="btn btn-ghost btn-small station-abort-btn" onClick={abortSimon}>
+          {currentMiniGame === 'stopbar' && (
+            <StopTheBarGame playerName={currentPlayerName} onSuccess={handleMiniGameSuccess} />
+          )}
+          {currentMiniGame === 'wireconnect' && (
+            <WireConnectGame playerName={currentPlayerName} onSuccess={handleMiniGameSuccess} />
+          )}
+          {(currentMiniGame === 'simon' || !currentMiniGame) && (
+            <SimonSaysGame playerName={currentPlayerName} onSuccess={handleMiniGameSuccess} />
+          )}
+          <button className="btn btn-ghost btn-small station-abort-btn" onClick={abortMiniGame}>
             {t('simonAbortBtn')}
           </button>
         </>
