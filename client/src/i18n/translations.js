@@ -262,6 +262,10 @@ export const translations = {
     fileReadingTaskDesc: 'Read Files',
     fileReadingOpenBtn: 'Open',
     fileReadingPenaltyWait: (s) => `Wait ${s}s`,
+    settingsEasyMode: 'Easy Mode',
+    easyModeDesc: 'Easy mode players get number questions instead of text questions.',
+    easyModeBadge: 'Easy',
+    noEasyModePlayers: 'No players in easy mode.',
   },
 
   he: {
@@ -519,6 +523,10 @@ export const translations = {
     fileReadingTaskDesc: 'קריאת קבצים',
     fileReadingOpenBtn: 'פתח',
     fileReadingPenaltyWait: (s) => `המתן ${s}ש׳`,
+    settingsEasyMode: 'מצב קל',
+    easyModeDesc: 'שחקנים במצב קל יקבלו שאלות מספרים במקום שאלות טקסט.',
+    easyModeBadge: 'קל',
+    noEasyModePlayers: 'אין שחקנים במצב קל.',
   },
 };
 

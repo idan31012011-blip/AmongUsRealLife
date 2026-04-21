@@ -71,6 +71,8 @@ const initialState = {
   pendingStationNotice: null, // { roomName } — shown when station disconnects
   isDoctor: false,           // doctor sub-role
   reportBodyWindowEnd: null, // ms timestamp when current report window expires (null = no window)
+  easyModePlayers: [],       // [playerId] — players assigned easy mode (lobby only)
+  isEasyMode: false,         // whether this player is in easy mode
 };
 
 function reducer(state, action) {
@@ -128,7 +130,11 @@ function reducer(state, action) {
         isManager: action.isManager,
         managerId: action.managerId ?? state.managerId,
         stationAssignments: action.stationAssignments ?? state.stationAssignments,
+        easyModePlayers: action.easyModePlayers ?? state.easyModePlayers,
       };
+
+    case 'EASY_MODE_UPDATED':
+      return { ...state, easyModePlayers: action.easyModePlayers };
 
     case 'SETTINGS_UPDATED':
       return { ...state, settings: action.settings };
@@ -171,6 +177,7 @@ function reducer(state, action) {
         myTasks: action.tasks,
         killCooldownUntil: action.killCooldownUntil || 0,
         myCode: action.myCode ?? null,
+        isEasyMode: action.isEasyMode ?? false,
       };
 
     case 'STATION_DEVICE_READY':
@@ -310,12 +317,14 @@ function reducer(state, action) {
         isManager: state.isManager,
         myName: state.myName,
         stationAssignments: action.stationAssignments ?? [],
+        easyModePlayers: action.easyModePlayers ?? [],
         myCode: null,
         stationRoom: null,
         stationHasMeeting: false,
         pendingStationNotice: null,
         isDoctor: false,
         reportBodyWindowEnd: null,
+        isEasyMode: false,
       };
 
     case 'GAME_STATE_RESTORED': {
@@ -604,6 +613,10 @@ export function GameProvider({ children }) {
       dispatch({ type: 'SETTINGS_UPDATED', settings });
     });
 
+    socket.on('easy_mode_updated', ({ easyModePlayers }) => {
+      dispatch({ type: 'EASY_MODE_UPDATED', easyModePlayers });
+    });
+
     socket.on('rooms_updated', ({ rooms }) => {
       dispatch({ type: 'ROOMS_UPDATED', rooms });
     });
@@ -673,6 +686,7 @@ export function GameProvider({ children }) {
       socket.off('game_reset');
       socket.off('game_state_restored');
       socket.off('settings_updated');
+      socket.off('easy_mode_updated');
       socket.off('rooms_updated');
       socket.off('room_locked');
       socket.off('room_unlocked');

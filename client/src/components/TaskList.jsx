@@ -6,9 +6,18 @@ import Modal from './Modal';
 import socket from '../socket';
 import FileReadingGame from '../screens/FileReadingGame';
 import { FILE_READING_QUESTIONS } from '../data/fileReadingQuestions';
+import { NUMBER_READING_QUESTIONS } from '../data/numberReadingQuestions';
 
-function pickRandomQuestion() {
-  return Math.floor(Math.random() * FILE_READING_QUESTIONS.length);
+// Easy mode → only number questions. Regular → random from combined pool.
+function pickQuestion(isEasyMode) {
+  if (isEasyMode) {
+    return { questionPool: 'number', questionIndex: Math.floor(Math.random() * NUMBER_READING_QUESTIONS.length) };
+  }
+  const total = FILE_READING_QUESTIONS.length + NUMBER_READING_QUESTIONS.length;
+  const pick = Math.floor(Math.random() * total);
+  return pick < FILE_READING_QUESTIONS.length
+    ? { questionPool: 'text', questionIndex: pick }
+    : { questionPool: 'number', questionIndex: pick - FILE_READING_QUESTIONS.length };
 }
 
 export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, deadDuration, hideFakeBadge }) {
@@ -17,21 +26,20 @@ export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, dead
   const [activeTaskId, setActiveTaskId] = useState(null);
   const [showCode, setShowCode] = useState(false);
 
-  // File reading task state — all client-side
-  const [frState, setFrState] = useState({
-    questionIndex: pickRandomQuestion(),
-    timerExpiresAt: null,      // null = no active timer
-    penaltyCooldownUntil: null, // null = no penalty
-    tabOpen: false,
-  });
-  // Force re-renders every second so penalty countdown display updates
-  const [, setTick] = useState(0);
-
   const settings = state.settings;
+  const isEasyMode = state.isEasyMode;
   const timerDuration = settings.fileReadingTimerDuration ?? 90000;
   const penaltyDuration = settings.fileReadingPenaltyCooldown ?? 30000;
 
   const frTask = tasks?.find(task => task.type === 'file_reading');
+
+  // File reading task state — all client-side
+  const [frState, setFrState] = useState(() => {
+    const { questionPool, questionIndex } = pickQuestion(isEasyMode);
+    return { questionPool, questionIndex, timerExpiresAt: null, penaltyCooldownUntil: null, tabOpen: false };
+  });
+  // Force re-renders every second so penalty countdown display updates
+  const [, setTick] = useState(0);
 
   // Watch for timer expiry — when it fires, rotate question and close tab (no penalty)
   useEffect(() => {
@@ -40,7 +48,7 @@ export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, dead
       if (Date.now() >= frState.timerExpiresAt) {
         setFrState(s => ({
           ...s,
-          questionIndex: pickRandomQuestion(),
+          ...pickQuestion(isEasyMode),
           timerExpiresAt: null,
           tabOpen: false,
         }));
@@ -90,7 +98,7 @@ export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, dead
     const now = Date.now();
     setFrState(s => ({
       ...s,
-      questionIndex: pickRandomQuestion(),
+      ...pickQuestion(isEasyMode),
       timerExpiresAt: null,
       penaltyCooldownUntil: now + penaltyDuration,
       tabOpen: false,
@@ -196,7 +204,11 @@ export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, dead
 
       {frState.tabOpen && frTask && !frTask.completed && (
         <FileReadingGame
-          question={FILE_READING_QUESTIONS[frState.questionIndex]}
+          question={
+            frState.questionPool === 'number'
+              ? NUMBER_READING_QUESTIONS[frState.questionIndex]
+              : FILE_READING_QUESTIONS[frState.questionIndex]
+          }
           timerExpiresAt={frState.timerExpiresAt}
           timerDuration={timerDuration}
           onCorrect={handleFrCorrect}

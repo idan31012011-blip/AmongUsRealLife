@@ -71,7 +71,7 @@ function Toggle({ checked, onChange, disabled }) {
   );
 }
 
-export default function SettingsPanel({ isManager, settings, rooms, gameCode, onClose, playerCount, stationAssignments, activePlayers, myId }) {
+export default function SettingsPanel({ isManager, settings, rooms, gameCode, onClose, playerCount, stationAssignments, activePlayers, myId, easyModePlayers }) {
   const { t } = useLanguage();
   const [assignPlayerId, setAssignPlayerId] = useState('');
   const [assignRoomName, setAssignRoomName] = useState('');
@@ -520,6 +520,38 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
               <NumInput value={local.fileReadingPenaltyCooldown} onChange={v => set('fileReadingPenaltyCooldown', v)}
                 min={5} max={120} disabled={ro} />
             </SettingsRow>
+
+            {/* Easy Mode player assignment */}
+            <div className="settings-subsection-title" style={{ marginTop: 12 }}>{t('settingsEasyMode')}</div>
+            <p className="settings-sublabel" style={{ marginBottom: 8 }}>{t('easyModeDesc')}</p>
+            {(() => {
+              const easySet = new Set(easyModePlayers ?? []);
+              const eligible = (activePlayers ?? []).filter(p => p.id !== myId);
+              if (eligible.length === 0) return <p className="station-no-assignments">{t('noEasyModePlayers')}</p>;
+              return (
+                <div className="easy-mode-list">
+                  {eligible.map(p => {
+                    const isOn = easySet.has(p.id);
+                    return (
+                      <div key={p.id} className="station-assignment-row">
+                        <span className="station-assignment-name">{p.name}</span>
+                        {isOn && <span className="badge">{t('easyModeBadge')}</span>}
+                        {isManager ? (
+                          <label className="settings-toggle">
+                            <input
+                              type="checkbox"
+                              checked={isOn}
+                              onChange={e => socket.emit('set_easy_mode', { code: gameCode, playerId: p.id, enabled: e.target.checked })}
+                            />
+                            <span className="settings-toggle-track" />
+                          </label>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </>
         )}
 

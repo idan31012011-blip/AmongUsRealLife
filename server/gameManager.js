@@ -26,6 +26,7 @@ function createGame({ managerId, rooms, settings }) {
     stationMeetingEnabled: new Map(), // Map<playerId, boolean>
     playerCodes: new Map(),           // Map<playerId, '3-digit string'>
     playerMiniGameHistory: new Map(), // Map<playerId, Set<miniGame>> — completed mini-games per player
+    easyModePlayers: new Set(),        // Set<playerId> — players assigned easy mode
     pendingMiniGames: new Map(),      // Map<playerId, miniGame> — assigned but not yet completed
     doctorId: null,                   // playerId of the doctor (sub-role)
     bodyReportWindow: null,           // { bodyId, expiresAt, imposterOnly, timeoutId } | null

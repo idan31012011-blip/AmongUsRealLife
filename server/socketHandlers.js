@@ -79,6 +79,7 @@ function registerHandlers(io, socket) {
       isManager: socket.id === game.managerId,
       managerId: game.managerId,
       stationAssignments: buildStationList(game),
+      easyModePlayers: [...game.easyModePlayers],
     });
 
     // Notify everyone else in the lobby
@@ -194,6 +195,7 @@ function registerHandlers(io, socket) {
     // Remove from server state
     game.players.delete(targetId);
     socketMeta.delete(targetId);
+    game.easyModePlayers.delete(targetId);
 
     // Remove from Socket.IO room so they stop receiving room events
     const kickedSocket = io.sockets.sockets.get(targetId);
@@ -203,6 +205,22 @@ function registerHandlers(io, socket) {
     io.to(code).emit('player_kicked', { playerId: targetId });
     // Also tell the kicked socket directly in case they're no longer in the room
     io.to(targetId).emit('player_kicked', { playerId: targetId });
+    io.to(code).emit('easy_mode_updated', { easyModePlayers: [...game.easyModePlayers] });
+  });
+
+  socket.on('set_easy_mode', ({ code, playerId, enabled } = {}) => {
+    const game = getGame(code);
+    if (!game) return;
+    if (game.phase !== 'lobby') return socket.emit('error', { message: 'Can only change easy mode in lobby.' });
+    if (socket.id !== game.managerId) return socket.emit('error', { message: 'Only the manager can set easy mode.' });
+    if (!game.players.has(playerId)) return;
+
+    if (enabled) {
+      game.easyModePlayers.add(playerId);
+    } else {
+      game.easyModePlayers.delete(playerId);
+    }
+    io.to(code).emit('easy_mode_updated', { easyModePlayers: [...game.easyModePlayers] });
   });
 
   socket.on('update_settings', ({ code, settings } = {}) => {
@@ -429,6 +447,7 @@ function registerHandlers(io, socket) {
           tasks: buildPlayerTasks(player, game.tasks),
           killCooldownUntil: player.role === 'imposter' ? game.imposterKillCooldownUntil : 0,
           myCode: game.playerCodes.get(id),
+          isEasyMode: game.easyModePlayers.has(id),
         });
       }
     }
@@ -1059,11 +1078,13 @@ function registerHandlers(io, socket) {
       player.hasCalledEmergency = false;
     }
 
+    game.easyModePlayers.clear();
     io.to(code).emit('game_reset', {
       players: buildPublicPlayerList(game.players),
       rooms: game.rooms,
       settings: game.settings,
       stationAssignments: buildStationList(game),
+      easyModePlayers: [],
     });
   });
 

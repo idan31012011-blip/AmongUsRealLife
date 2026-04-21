@@ -8,7 +8,7 @@ import SettingsPanel from '../components/SettingsPanel';
 export default function LobbyScreen() {
   const { state } = useGame();
   const { t } = useLanguage();
-  const { gameCode, players, isManager, myId, rooms, settings, stationAssignments } = state;
+  const { gameCode, players, isManager, myId, rooms, settings, stationAssignments, easyModePlayers } = state;
   const [copied, setCopied] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const activePlayers = players.filter(p => !p.disconnected);
@@ -128,6 +128,7 @@ export default function LobbyScreen() {
           stationAssignments={stationAssignments}
           activePlayers={activePlayers}
           myId={myId}
+          easyModePlayers={easyModePlayers}
         />
       )}
     </div>
