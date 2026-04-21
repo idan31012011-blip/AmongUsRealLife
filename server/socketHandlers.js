@@ -280,6 +280,15 @@ function registerHandlers(io, socket) {
       if (valid.length > 0) validated.stationMiniGames = valid;
     }
 
+    // File reading task
+    if (typeof settings.fileReadingEnabled === 'boolean') validated.fileReadingEnabled = settings.fileReadingEnabled;
+
+    const frtd = clampInt(settings.fileReadingTimerDuration, 15000, 300000);
+    if (frtd !== null) validated.fileReadingTimerDuration = frtd;
+
+    const frpc = clampInt(settings.fileReadingPenaltyCooldown, 5000, 120000);
+    if (frpc !== null) validated.fileReadingPenaltyCooldown = frpc;
+
     Object.assign(game.settings, validated);
 
     // Keep globalLockdownUsesLeft in sync with maxGlobalLockdowns
