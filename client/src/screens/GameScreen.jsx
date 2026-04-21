@@ -126,7 +126,7 @@ export default function GameScreen() {
   const reportWindowActive = stationsMode && reportBodyWindowEnd != null && Date.now() < reportBodyWindowEnd && !criticalCountdownActive;
 
   return (
-    <div className={`screen game-screen ${isDead ? 'dead-screen' : ''}`}>
+    <div className={`screen game-screen ${isDead ? 'dead-screen' : ''} ${criticalCountdownActive ? 'cc-active' : ''}`}>
       {/* Top bar */}
       <div className="game-topbar">
         <TaskProgressBar percent={taskProgressPercent} />
@@ -320,11 +320,13 @@ export default function GameScreen() {
       {/* Doctor monitor */}
       {showMonitor && <MonitorMenu onClose={() => setShowMonitor(false)} />}
 
-      {/* Critical Countdown overlay — shown to ALL players */}
+      {/* Critical Countdown banner — shown to ALL players, non-blocking */}
       {criticalCountdownActive && sabotage.criticalCountdownExpiresAt && (
         <div className="cc-overlay">
-          <div className="cc-overlay-title">{t('criticalCountdownOverlayTitle')}</div>
-          <CriticalCountdownTimer expiresAt={sabotage.criticalCountdownExpiresAt} />
+          <div className="cc-banner-row">
+            <div className="cc-overlay-title">{t('criticalCountdownOverlayTitle')}</div>
+            <CriticalCountdownTimer expiresAt={sabotage.criticalCountdownExpiresAt} />
+          </div>
           <div className="cc-overlay-subtitle">
             {isImposter
               ? t('criticalCountdownImposterSubtitle')

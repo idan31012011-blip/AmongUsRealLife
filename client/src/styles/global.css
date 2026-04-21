@@ -2757,47 +2757,58 @@ input {
   font-weight: 500;
 }
 
-/* ── Critical Countdown Overlay (GameScreen + non-designated StationScreen) ── */
+/* ── Critical Countdown Banner (GameScreen) ── */
 .cc-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 200;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-lg);
-  padding: var(--space-xl);
-  background: rgba(180, 0, 0, 0.92);
+  gap: 2px;
+  padding: calc(var(--safe-top) + 8px) 16px 8px;
+  background: rgba(180, 0, 0, 0.95);
   animation: lockdownPulse 0.8s ease-in-out infinite;
   pointer-events: none;
 }
 
+.cc-banner-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .cc-overlay-title {
-  font-size: 30px;
+  font-size: 13px;
   font-weight: 900;
-  letter-spacing: 3px;
+  letter-spacing: 2px;
   color: #fff;
-  text-align: center;
-  text-shadow: 0 0 24px rgba(255, 80, 80, 1);
+  text-shadow: 0 0 12px rgba(255, 80, 80, 1);
+  flex: 1;
 }
 
 .cc-overlay-timer {
-  font-size: 96px;
+  font-size: 36px;
   font-weight: 900;
   color: #fff;
   line-height: 1;
-  text-shadow: 0 0 32px rgba(255, 255, 255, 0.5);
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
   font-variant-numeric: tabular-nums;
 }
 
 .cc-overlay-subtitle {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
   text-align: center;
-  max-width: 280px;
-  line-height: 1.4;
+  line-height: 1.3;
   font-weight: 600;
+}
+
+/* Push game content below the banner when active */
+.game-screen.cc-active .game-topbar {
+  padding-top: calc(var(--safe-top) + 62px);
 }
 
 /* ── Critical Countdown Station Screen ──────────────────────────────────── */
