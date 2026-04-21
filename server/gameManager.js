@@ -51,6 +51,9 @@ function createGame({ managerId, rooms, settings }) {
       criticalCountdownCooldown:    settings?.criticalCountdownCooldown    ?? 30000,
       maxCriticalCountdowns:        settings?.maxCriticalCountdowns        ?? 1,
       criticalCountdownStation:     settings?.criticalCountdownStation     ?? null,
+      fileReadingEnabled:           settings?.fileReadingEnabled           ?? false,
+      fileReadingTimerDuration:     settings?.fileReadingTimerDuration     ?? 90000,
+      fileReadingPenaltyCooldown:   settings?.fileReadingPenaltyCooldown   ?? 30000,
     },
     sabotage: {
       lockedRooms: new Map(),         // roomName → { expiresAt, timeoutId }

@@ -16,6 +16,8 @@ const DEFAULTS_SEC = {
   criticalCountdownDuration: 40,
   criticalCountdownCooldown: 30,
   maxCriticalCountdowns: 1,
+  fileReadingTimerDuration: 90,
+  fileReadingPenaltyCooldown: 30,
 };
 
 function toSec(ms) { return Math.round(ms / 1000); }
@@ -95,6 +97,9 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
     criticalCountdownCooldown: toSec(settings.criticalCountdownCooldown ?? 30000),
     maxCriticalCountdowns: settings.maxCriticalCountdowns ?? 1,
     criticalCountdownStation: settings.criticalCountdownStation ?? null,
+    fileReadingEnabled: settings.fileReadingEnabled ?? false,
+    fileReadingTimerDuration: toSec(settings.fileReadingTimerDuration ?? 90000),
+    fileReadingPenaltyCooldown: toSec(settings.fileReadingPenaltyCooldown ?? 30000),
   });
 
   const [saved, setSaved] = useState(false);
@@ -128,6 +133,9 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
       criticalCountdownCooldown: toSec(settings.criticalCountdownCooldown ?? 30000),
       maxCriticalCountdowns: settings.maxCriticalCountdowns ?? 1,
       criticalCountdownStation: settings.criticalCountdownStation ?? null,
+      fileReadingEnabled: settings.fileReadingEnabled ?? false,
+      fileReadingTimerDuration: toSec(settings.fileReadingTimerDuration ?? 90000),
+      fileReadingPenaltyCooldown: toSec(settings.fileReadingPenaltyCooldown ?? 30000),
     });
     setSaved(true);
     const timer = setTimeout(() => setSaved(false), 1500);
@@ -193,6 +201,9 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
         criticalCountdownCooldown: toMs(local.criticalCountdownCooldown),
         maxCriticalCountdowns: parseInt(local.maxCriticalCountdowns, 10),
         criticalCountdownStation: local.criticalCountdownStation || null,
+        fileReadingEnabled: local.fileReadingEnabled,
+        fileReadingTimerDuration: toMs(local.fileReadingTimerDuration),
+        fileReadingPenaltyCooldown: toMs(local.fileReadingPenaltyCooldown),
       },
     });
   }
@@ -491,6 +502,26 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
         <SettingsRow label={t('doctorEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOff'))}>
           <Toggle checked={local.doctorEnabled} onChange={v => set('doctorEnabled', v)} disabled={ro} />
         </SettingsRow>
+
+        {/* ── File Reading ────────────────────────────────────────────── */}
+        <div className="settings-section-title" style={{ marginTop: 20 }}>{t('settingsFileReading')}</div>
+
+        <SettingsRow label={t('fileReadingEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOff'))}>
+          <Toggle checked={local.fileReadingEnabled} onChange={v => set('fileReadingEnabled', v)} disabled={ro} />
+        </SettingsRow>
+
+        {local.fileReadingEnabled && (
+          <>
+            <SettingsRow label={t('fileReadingTimerLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.fileReadingTimerDuration}s`)}>
+              <NumInput value={local.fileReadingTimerDuration} onChange={v => set('fileReadingTimerDuration', v)}
+                min={15} max={300} disabled={ro} />
+            </SettingsRow>
+            <SettingsRow label={t('fileReadingPenaltyLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.fileReadingPenaltyCooldown}s`)}>
+              <NumInput value={local.fileReadingPenaltyCooldown} onChange={v => set('fileReadingPenaltyCooldown', v)}
+                min={5} max={120} disabled={ro} />
+            </SettingsRow>
+          </>
+        )}
 
         {isManager && (
           <button className="btn btn-blue btn-block settings-save-btn" onClick={handleSaveSettings} disabled={saved}>

@@ -18,6 +18,9 @@ const defaultSettings = {
   globalLockdownCooldown: 120000,
   maxGlobalLockdowns: 2,
   stationsEnabled: false,
+  fileReadingEnabled: false,
+  fileReadingTimerDuration: 90000,
+  fileReadingPenaltyCooldown: 30000,
 };
 
 const defaultSabotage = {

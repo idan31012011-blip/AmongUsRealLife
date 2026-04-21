@@ -253,6 +253,15 @@ export const translations = {
     monitorDead: 'Flatline',
     monitorYou: '(you)',
     enableMotionBtn: 'Enable Motion Sensors',
+
+    // File Reading task
+    settingsFileReading: 'File Reading Task',
+    fileReadingEnabledLabel: 'Enable file reading task',
+    fileReadingTimerLabel: 'Question timer',
+    fileReadingPenaltyLabel: 'Wrong answer cooldown',
+    fileReadingTaskDesc: 'Read Files',
+    fileReadingOpenBtn: 'Open',
+    fileReadingPenaltyWait: (s) => `Wait ${s}s`,
   },
 
   he: {
@@ -501,6 +510,15 @@ export const translations = {
     monitorDead: 'קו שטוח',
     monitorYou: '(אני)',
     enableMotionBtn: 'אפשר חיישני תנועה',
+
+    // File Reading task
+    settingsFileReading: 'משימת קריאת קבצים',
+    fileReadingEnabledLabel: 'הפעל משימת קריאת קבצים',
+    fileReadingTimerLabel: 'טיימר שאלה',
+    fileReadingPenaltyLabel: 'זמן קירור לתשובה שגויה',
+    fileReadingTaskDesc: 'קריאת קבצים',
+    fileReadingOpenBtn: 'פתח',
+    fileReadingPenaltyWait: (s) => `המתן ${s}ש׳`,
   },
 };
 

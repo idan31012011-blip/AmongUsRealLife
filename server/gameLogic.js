@@ -45,6 +45,20 @@ function assignRoles(game) {
       tasks.set(taskId, task);
       player.tasksAssigned.push(taskId);
     });
+
+    if (game.settings.fileReadingEnabled) {
+      const frTaskId = `file-reading-${id}`;
+      tasks.set(frTaskId, {
+        id: frTaskId,
+        room: null,
+        description: 'קריאת קבצים',
+        assignedTo: id,
+        completed: false,
+        isFake: id === imposterId,
+        type: 'file_reading',
+      });
+      player.tasksAssigned.push(frTaskId);
+    }
   }
 
   return tasks;
