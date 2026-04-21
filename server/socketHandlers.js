@@ -857,9 +857,7 @@ function registerHandlers(io, socket) {
     if (!player || player.isAlive) return;
     if (game.stations.has(socket.id)) return;
 
-    // Block if critical countdown is active or if any report window is already active
     if (game.sabotage.criticalCountdownActive) return;
-    if (game.bodyReportWindow && Date.now() < game.bodyReportWindow.expiresAt) return;
 
     if (game.bodyReportWindow?.timeoutId) clearTimeout(game.bodyReportWindow.timeoutId);
     const expiresAt = Date.now() + 5000;
