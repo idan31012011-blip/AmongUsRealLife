@@ -12,30 +12,11 @@ function ctx() {
   return _ctx;
 }
 
-// 1. Emergency meeting — two-tone klaxon alarm
+// 1. Emergency meeting — custom sound file
 export function playEmergencyAlarm() {
   try {
-    const ac = ctx();
-    const now = ac.currentTime;
-
-    const osc = ac.createOscillator();
-    const gain = ac.createGain();
-    osc.type = 'sawtooth';
-
-    // Alternate 880 Hz / 440 Hz every 0.25 s (8 pulses = 2 s)
-    [880, 440, 880, 440, 880, 440, 880, 440].forEach((f, i) => {
-      osc.frequency.setValueAtTime(f, now + i * 0.25);
-    });
-
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.5, now + 0.05);
-    gain.gain.setValueAtTime(0.5, now + 1.9);
-    gain.gain.linearRampToValueAtTime(0, now + 2.2);
-
-    osc.connect(gain);
-    gain.connect(ac.destination);
-    osc.start(now);
-    osc.stop(now + 2.3);
+    const audio = new Audio('/sounds/AMONG US MEETING SOUND.mp3');
+    audio.play();
   } catch (_) {}
 }
 
