@@ -529,8 +529,8 @@ export function GameProvider({ children }) {
       dispatch({ type: 'GAME_STARTED', players });
     });
 
-    socket.on('role_assigned', ({ role, tasks, killCooldownUntil, myCode }) => {
-      dispatch({ type: 'ROLE_ASSIGNED', role, tasks, killCooldownUntil, myCode });
+    socket.on('role_assigned', ({ role, tasks, killCooldownUntil, myCode, isEasyMode }) => {
+      dispatch({ type: 'ROLE_ASSIGNED', role, tasks, killCooldownUntil, myCode, isEasyMode });
     });
 
     socket.on('station_device_ready', ({ roomName, hasMeeting }) => {

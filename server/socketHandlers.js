@@ -1078,13 +1078,12 @@ function registerHandlers(io, socket) {
       player.hasCalledEmergency = false;
     }
 
-    game.easyModePlayers.clear();
     io.to(code).emit('game_reset', {
       players: buildPublicPlayerList(game.players),
       rooms: game.rooms,
       settings: game.settings,
       stationAssignments: buildStationList(game),
-      easyModePlayers: [],
+      easyModePlayers: [...game.easyModePlayers],
     });
   });
 
