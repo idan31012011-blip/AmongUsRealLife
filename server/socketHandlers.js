@@ -500,23 +500,24 @@ function registerHandlers(io, socket) {
     if (!task || task.assignedTo !== socket.id || task.completed) return;
     if (task.type === 'station') return; // station tasks completed at the station device
 
-    // Validate timing: server must have recorded a hold start
-    const holdStart = game.taskHoldStartTimes.get(taskId);
-    if (!holdStart) return;
+    // File reading tasks are completed by answering correctly — no hold timing needed
+    if (task.type !== 'file_reading') {
+      const holdStart = game.taskHoldStartTimes.get(taskId);
+      if (!holdStart) return;
 
-    const expected = player.isAlive
-      ? game.settings.taskHoldDuration
-      : game.settings.deadTaskHoldDuration;
-    const elapsed = Date.now() - holdStart;
-    if (elapsed < expected - 2000) {
-      // More than 2s short → reject (generous tolerance for network lag)
+      const expected = player.isAlive
+        ? game.settings.taskHoldDuration
+        : game.settings.deadTaskHoldDuration;
+      const elapsed = Date.now() - holdStart;
+      if (elapsed < expected - 2000) {
+        game.taskHoldStartTimes.delete(taskId);
+        return socket.emit('task_rejected', { taskId, reason: 'Too fast.' });
+      }
       game.taskHoldStartTimes.delete(taskId);
-      return socket.emit('task_rejected', { taskId, reason: 'Too fast.' });
     }
 
     task.completed = true;
     player.tasksCompleted.add(taskId);
-    game.taskHoldStartTimes.delete(taskId);
 
     const progressPercent = calculateTaskProgress(game.tasks);
 
