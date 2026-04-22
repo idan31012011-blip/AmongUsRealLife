@@ -28,6 +28,7 @@ export default function GameEndScreen() {
     manager_ended: t('reasonManagerEnded'),
     critical_countdown_expired: t('reasonCriticalCountdownExpired'),
     imposter_disconnected: t('reasonImposterDisconnected'),
+    imposter_kicked: t('reasonImposterKicked'),
   }[winReason] || '';
 
   function playAgain() {

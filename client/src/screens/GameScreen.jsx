@@ -81,6 +81,8 @@ export default function GameScreen() {
   const [disguised, setDisguised] = useState(false);
   const [showSabotageMenu, setShowSabotageMenu] = useState(false);
   const [showMonitor, setShowMonitor] = useState(false);
+  const [showManagerKickMenu, setShowManagerKickMenu] = useState(false);
+  const [pendingKickTarget, setPendingKickTarget] = useState(null);
 
   const livingTargets = players.filter(p => p.isAlive && p.id !== myId);
 
@@ -113,6 +115,12 @@ export default function GameScreen() {
   function endGame() {
     socket.emit('end_game', { code: gameCode });
     setShowEndConfirm(false);
+  }
+
+  function confirmKickPlayer() {
+    if (!pendingKickTarget) return;
+    socket.emit('kick_player', { code: gameCode, targetId: pendingKickTarget.id });
+    setPendingKickTarget(null);
   }
 
   const isDead = !isAlive;
@@ -242,6 +250,9 @@ export default function GameScreen() {
       {/* Manager controls */}
       {isManager && (
         <div className="manager-controls">
+          <button className="btn btn-ghost btn-small" onClick={() => setShowManagerKickMenu(true)}>
+            {t('kickPlayerBtn')}
+          </button>
           <button className="btn btn-ghost btn-small" onClick={() => setShowEndConfirm(true)}>
             {t('endGameBtn')}
           </button>
@@ -273,6 +284,30 @@ export default function GameScreen() {
           <button className="btn btn-ghost modal-player-btn" onClick={() => setPendingKillTarget(null)}>
             {t('cancel')}
           </button>
+        </Modal>
+      )}
+
+      {/* Manager kick player menu */}
+      {showManagerKickMenu && (
+        <Modal title={t('kickPlayerTitle')} onClose={() => setShowManagerKickMenu(false)}>
+          {players.filter(p => p.id !== myId).length === 0 ? (
+            <p style={{ color: 'var(--color-text-dim)', padding: '8px 0' }}>{t('noTargets')}</p>
+          ) : (
+            players.filter(p => p.id !== myId).map(p => (
+              <button key={p.id} className="btn btn-red modal-player-btn" onClick={() => { setShowManagerKickMenu(false); setPendingKickTarget(p); }}>
+                {p.name}{!p.isAlive ? ` (${t('dead')})` : ''}
+              </button>
+            ))
+          )}
+        </Modal>
+      )}
+
+      {/* Manager kick confirm */}
+      {pendingKickTarget && (
+        <Modal title={t('kickPlayerTitle')} onClose={() => setPendingKickTarget(null)}>
+          <p className="confirm-msg">{t('kickPlayerConfirm', pendingKickTarget.name)}</p>
+          <button className="btn btn-red modal-player-btn" onClick={confirmKickPlayer}>{t('kickPlayerBtn')}</button>
+          <button className="btn btn-ghost modal-player-btn" onClick={() => setPendingKickTarget(null)}>{t('cancel')}</button>
         </Modal>
       )}
 

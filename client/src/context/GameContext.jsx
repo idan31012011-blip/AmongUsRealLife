@@ -381,6 +381,15 @@ function reducer(state, action) {
       }
       return { ...state, players: state.players.filter(p => p.id !== action.playerId) };
 
+    case 'PLAYER_REMOVED':
+      return {
+        ...state,
+        players: state.players.map(p =>
+          p.id === action.playerId ? { ...p, isAlive: false } : p
+        ),
+        isAlive: action.playerId === state.myId ? false : state.isAlive,
+      };
+
     case 'SET_MY_NAME':
       return { ...state, myName: action.name };
 
@@ -525,6 +534,10 @@ export function GameProvider({ children }) {
       dispatch({ type: 'PLAYER_DISCONNECTED', playerId });
     });
 
+    socket.on('player_removed', ({ playerId }) => {
+      dispatch({ type: 'PLAYER_REMOVED', playerId });
+    });
+
     socket.on('game_started', ({ players }) => {
       dispatch({ type: 'GAME_STARTED', players });
     });
@@ -664,6 +677,7 @@ export function GameProvider({ children }) {
       socket.off('player_left');
       socket.off('player_reconnected');
       socket.off('player_disconnected');
+      socket.off('player_removed');
       socket.off('game_started');
       socket.off('role_assigned');
       socket.off('station_device_ready');

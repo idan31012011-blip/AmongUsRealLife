@@ -7,7 +7,7 @@ import { playRoleSuspense } from '../sounds';
 export default function RoleRevealScreen() {
   const { state } = useGame();
   const { t } = useLanguage();
-  const { myRole, gameCode, isDoctor } = state;
+  const { myRole, gameCode, isDoctor, isManager } = state;
   const [stage, setStage] = useState('suspense'); // 'suspense' | 'flipping' | 'revealed' | 'waiting'
   const [motionGranted, setMotionGranted] = useState(false);
   const needsMotionPrompt = typeof DeviceMotionEvent !== 'undefined' &&
@@ -90,6 +90,15 @@ export default function RoleRevealScreen() {
           <div className="spinner" />
           {t('waitingForOthers')}
         </div>
+      )}
+
+      {isManager && (stage === 'waiting' || stage === 'revealed') && (
+        <button
+          className="btn btn-ghost btn-small manager-skip-btn"
+          onClick={() => socket.emit('manager_skip_role_reveal', { code: gameCode })}
+        >
+          {t('skipRoleRevealBtn')}
+        </button>
       )}
     </div>
   );

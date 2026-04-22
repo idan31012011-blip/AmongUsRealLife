@@ -15,10 +15,23 @@ export default function VotingScreen() {
 
   const [pendingVote, setPendingVote] = useState(null);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [showForceEndVoting, setShowForceEndVoting] = useState(false);
+  const [pendingKickTarget, setPendingKickTarget] = useState(null);
 
   function endGame() {
     socket.emit('end_game', { code: gameCode });
     setShowEndConfirm(false);
+  }
+
+  function forceEndVoting() {
+    socket.emit('force_end_voting', { code: gameCode });
+    setShowForceEndVoting(false);
+  }
+
+  function confirmKick() {
+    if (!pendingKickTarget) return;
+    socket.emit('kick_player', { code: gameCode, targetId: pendingKickTarget.id });
+    setPendingKickTarget(null);
   }
 
   const livingPlayers = players.filter(p => p.isAlive);
@@ -66,25 +79,29 @@ export default function VotingScreen() {
 
       <div className="vote-grid">
         {livingPlayers.map(p => (
-          <button
-            key={p.id}
-            className={`vote-card
-              ${myVote === p.id ? 'voted' : ''}
-              ${myVote && myVote !== p.id ? 'dimmed' : ''}
-              ${pendingVote?.id === p.id ? 'pending' : ''}
-              ${!isAlive || myVote ? 'no-interact' : ''}`}
-            onClick={() => selectVote(p.id, p.name)}
-            disabled={!isAlive || !!myVote}
-          >
-            <div className="vote-avatar" style={{ background: stringToColor(p.name) }}>
-              {p.name[0].toUpperCase()}
-            </div>
-            <div className="vote-name">
-              {p.name}
-              {p.id === myId && t('youSuffix')}
-            </div>
-            {myVote === p.id && <div className="vote-check">✓</div>}
-          </button>
+          <div key={p.id} className="vote-card-wrapper">
+            <button
+              className={`vote-card
+                ${myVote === p.id ? 'voted' : ''}
+                ${myVote && myVote !== p.id ? 'dimmed' : ''}
+                ${pendingVote?.id === p.id ? 'pending' : ''}
+                ${!isAlive || myVote ? 'no-interact' : ''}`}
+              onClick={() => selectVote(p.id, p.name)}
+              disabled={!isAlive || !!myVote}
+            >
+              <div className="vote-avatar" style={{ background: stringToColor(p.name) }}>
+                {p.name[0].toUpperCase()}
+              </div>
+              <div className="vote-name">
+                {p.name}
+                {p.id === myId && t('youSuffix')}
+              </div>
+              {myVote === p.id && <div className="vote-check">✓</div>}
+            </button>
+            {isManager && p.id !== myId && (
+              <button className="btn-kick-overlay" onClick={() => setPendingKickTarget(p)}>✕</button>
+            )}
+          </div>
         ))}
 
         <button
@@ -126,10 +143,29 @@ export default function VotingScreen() {
 
       {isManager && (
         <div className="manager-controls">
+          <button className="btn btn-ghost btn-small" onClick={() => setShowForceEndVoting(true)}>
+            {t('forceEndVotingBtn')}
+          </button>
           <button className="btn btn-ghost btn-small" onClick={() => setShowEndConfirm(true)}>
             {t('endGameBtn')}
           </button>
         </div>
+      )}
+
+      {showForceEndVoting && (
+        <Modal title={t('forceEndVotingTitle')} onClose={() => setShowForceEndVoting(false)}>
+          <p style={{ color: 'var(--color-text-dim)', marginBottom: '8px' }}>{t('forceEndVotingConfirm')}</p>
+          <button className="btn btn-red" onClick={forceEndVoting}>{t('forceEndVotingBtn')}</button>
+          <button className="btn btn-ghost" onClick={() => setShowForceEndVoting(false)}>{t('cancel')}</button>
+        </Modal>
+      )}
+
+      {pendingKickTarget && (
+        <Modal title={t('kickPlayerTitle')} onClose={() => setPendingKickTarget(null)}>
+          <p className="confirm-msg">{t('kickPlayerConfirm', pendingKickTarget.name)}</p>
+          <button className="btn btn-red modal-player-btn" onClick={confirmKick}>{t('kickPlayerBtn')}</button>
+          <button className="btn btn-ghost modal-player-btn" onClick={() => setPendingKickTarget(null)}>{t('cancel')}</button>
+        </Modal>
       )}
 
       {showEndConfirm && (

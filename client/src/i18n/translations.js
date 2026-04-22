@@ -66,6 +66,14 @@ export const translations = {
     endGameBtn: 'End Game',
     endGameTitle: 'End Game?',
     endGameConfirm: 'End the game early?',
+    kickPlayerBtn: 'Kick Player',
+    kickPlayerTitle: 'Kick Player',
+    kickPlayerConfirm: (name) => `Remove ${name} from the game?`,
+    forceEndVotingBtn: 'End Voting Now',
+    forceEndVotingTitle: 'End Voting?',
+    forceEndVotingConfirm: 'End voting now with current results?',
+    skipRoleRevealBtn: 'Start Game',
+    dead: 'dead',
     ghostTitle: 'You\'re dead',
 
     // Killed screen
@@ -158,6 +166,7 @@ export const translations = {
     // Game end reasons
     reasonCriticalCountdownExpired: 'The crew failed to enter the code in time!',
     reasonImposterDisconnected: 'The Imposter disconnected!',
+    reasonImposterKicked: 'The Imposter was removed by the host!',
 
     // Settings panel
     settingsEditTitle: 'Edit Settings',
@@ -336,6 +345,14 @@ export const translations = {
     endGameBtn: 'סיים משחק',
     endGameTitle: 'לסיים משחק?',
     endGameConfirm: 'לסיים את המשחק מוקדם?',
+    kickPlayerBtn: 'הסר שחקן',
+    kickPlayerTitle: 'הסר שחקן',
+    kickPlayerConfirm: (name) => `להסיר את ${name} מהמשחק?`,
+    forceEndVotingBtn: 'סיים הצבעה עכשיו',
+    forceEndVotingTitle: 'לסיים הצבעה?',
+    forceEndVotingConfirm: 'לסיים את ההצבעה עם התוצאות הנוכחיות?',
+    skipRoleRevealBtn: 'התחל משחק',
+    dead: 'מת',
     ghostTitle: 'אתה מת',
 
     // Killed screen
@@ -420,6 +437,7 @@ export const translations = {
     criticalCountdownStationSelect: 'בחר חדר עמדה…',
     reasonCriticalCountdownExpired: 'הצוות לא הכניס את הקוד בזמן!',
     reasonImposterDisconnected: 'האימפוסטר התנתק!',
+    reasonImposterKicked: 'האימפוסטר הוסר על ידי המארח!',
 
     // Settings panel
     settingsEditTitle: 'ערוך הגדרות',

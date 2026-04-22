@@ -188,24 +188,43 @@ function registerHandlers(io, socket) {
 
   socket.on('kick_player', ({ code, targetId } = {}) => {
     const game = getGame(code);
-    if (!game || game.phase !== 'lobby') return socket.emit('error', { message: 'Can only kick in lobby.' });
+    if (!game) return socket.emit('error', { message: 'Game not found.' });
     if (socket.id !== game.managerId) return socket.emit('error', { message: 'Only manager can kick.' });
     if (targetId === socket.id) return socket.emit('error', { message: 'Cannot kick yourself.' });
 
-    // Remove from server state
-    game.players.delete(targetId);
-    socketMeta.delete(targetId);
-    game.easyModePlayers.delete(targetId);
+    const target = game.players.get(targetId);
+    if (!target) return socket.emit('error', { message: 'Player not found.' });
 
-    // Remove from Socket.IO room so they stop receiving room events
     const kickedSocket = io.sockets.sockets.get(targetId);
     if (kickedSocket) kickedSocket.leave(code);
-
-    // player_kicked carries the playerId — clients check if it's themselves
-    io.to(code).emit('player_kicked', { playerId: targetId });
-    // Also tell the kicked socket directly in case they're no longer in the room
     io.to(targetId).emit('player_kicked', { playerId: targetId });
-    io.to(code).emit('easy_mode_updated', { easyModePlayers: [...game.easyModePlayers] });
+
+    if (game.phase === 'lobby') {
+      game.players.delete(targetId);
+      socketMeta.delete(targetId);
+      game.easyModePlayers.delete(targetId);
+      io.to(code).emit('player_kicked', { playerId: targetId });
+      io.to(code).emit('easy_mode_updated', { easyModePlayers: [...game.easyModePlayers] });
+    } else if (game.phase === 'gameplay' || game.phase === 'voting') {
+      const wasImposter = target.role === 'imposter';
+      game.players.delete(targetId);
+      socketMeta.delete(targetId);
+      io.to(code).emit('player_kicked', { playerId: targetId });
+      if (wasImposter) {
+        endGame(io, game, { winner: 'crewmates', reason: 'imposter_kicked' });
+      } else {
+        const result = checkWinConditions(game);
+        if (result) {
+          endGame(io, game, result);
+        } else if (game.phase === 'voting') {
+          // Kicked player can no longer vote — resolve if all remaining have voted
+          const livingVoters = [...game.players.values()].filter(p => p.isAlive && !game.stations.has(p.id));
+          if (livingVoters.length > 0 && game.votes.size >= livingVoters.length) {
+            resolveVoting(io, game);
+          }
+        }
+      }
+    }
   });
 
   socket.on('set_easy_mode', ({ code, playerId, enabled } = {}) => {
@@ -479,6 +498,16 @@ function registerHandlers(io, socket) {
         taskProgressPercent: calculateTaskProgress(game.tasks),
       });
     }
+  });
+
+  socket.on('manager_skip_role_reveal', ({ code } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'role_reveal') return;
+    if (socket.id !== game.managerId) return socket.emit('error', { message: 'Only manager can skip.' });
+    game.phase = 'gameplay';
+    io.to(code).emit('all_revealed', {
+      taskProgressPercent: calculateTaskProgress(game.tasks),
+    });
   });
 
   // ─── GAMEPLAY ─────────────────────────────────────────────────────────────
@@ -1008,6 +1037,13 @@ function registerHandlers(io, socket) {
     }
   });
 
+  socket.on('force_end_voting', ({ code } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'voting') return;
+    if (socket.id !== game.managerId) return socket.emit('error', { message: 'Only manager can force end voting.' });
+    resolveVoting(io, game);
+  });
+
   // ─── MANAGER CONTROLS ─────────────────────────────────────────────────────
 
   socket.on('end_game', ({ code } = {}) => {
@@ -1130,17 +1166,29 @@ function registerHandlers(io, socket) {
         game.players.delete(socket.id);
         return;
       }
-      // Immediately remove the player from the active game
-      player.isAlive = false;
-      io.to(game.code).emit('player_removed', { playerId: socket.id, reason: 'disconnected' });
-
-      if (player.role === 'imposter') {
-        endGame(io, game, { winner: 'crewmates', reason: 'imposter_disconnected' });
-      } else {
-        const result = checkWinConditions(game);
-        if (result) endGame(io, game, result);
-      }
+      player.disconnected = true;
+      io.to(game.code).emit('player_disconnected', { playerId: socket.id });
     }
+
+    // Give 60s to reconnect; if not back, remove them from the active game
+    setTimeout(() => {
+      const g = getGame(meta.gameCode);
+      if (!g) return;
+      const p = g.players.get(socket.id);
+      if (!p || !p.disconnected) return; // already reconnected
+      p.isAlive = false;
+      io.to(g.code).emit('player_removed', { playerId: socket.id });
+      if (p.role === 'imposter') {
+        endGame(io, g, { winner: 'crewmates', reason: 'imposter_disconnected' });
+      } else {
+        const result = checkWinConditions(g);
+        if (result) endGame(io, g, result);
+        if (g.phase === 'voting') {
+          const livingVoters = [...g.players.values()].filter(q => q.isAlive && !g.stations.has(q.id));
+          if (livingVoters.length > 0 && g.votes.size >= livingVoters.length) resolveVoting(io, g);
+        }
+      }
+    }, 60000);
   });
 }
 
