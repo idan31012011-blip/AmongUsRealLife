@@ -1130,25 +1130,17 @@ function registerHandlers(io, socket) {
         game.players.delete(socket.id);
         return;
       }
-      player.disconnected = true;
-      io.to(game.code).emit('player_disconnected', { playerId: socket.id });
-    }
+      // Immediately remove the player from the active game
+      player.isAlive = false;
+      io.to(game.code).emit('player_removed', { playerId: socket.id, reason: 'disconnected' });
 
-    // Give 60s for reconnect; if not, treat as dead
-    setTimeout(() => {
-      const g = getGame(meta.gameCode);
-      if (!g) return;
-      const p = g.players.get(socket.id);
-      if (p && p.disconnected) {
-        // If still disconnected after 60s, mark them as dead/removed in active games
-        if (g.phase === 'gameplay') {
-          p.isAlive = false;
-          io.to(g.code).emit('player_removed', { playerId: socket.id });
-          const result = checkWinConditions(g);
-          if (result) endGame(io, g, result);
-        }
+      if (player.role === 'imposter') {
+        endGame(io, game, { winner: 'crewmates', reason: 'imposter_disconnected' });
+      } else {
+        const result = checkWinConditions(game);
+        if (result) endGame(io, game, result);
       }
-    }, 60000);
+    }
   });
 }
 

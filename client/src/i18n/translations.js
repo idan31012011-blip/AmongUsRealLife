@@ -157,6 +157,7 @@ export const translations = {
 
     // Game end reasons
     reasonCriticalCountdownExpired: 'The crew failed to enter the code in time!',
+    reasonImposterDisconnected: 'The Imposter disconnected!',
 
     // Settings panel
     settingsEditTitle: 'Edit Settings',
@@ -418,6 +419,7 @@ export const translations = {
     criticalCountdownStationAuto: 'אוטומטי (עמדה יחידה)',
     criticalCountdownStationSelect: 'בחר חדר עמדה…',
     reasonCriticalCountdownExpired: 'הצוות לא הכניס את הקוד בזמן!',
+    reasonImposterDisconnected: 'האימפוסטר התנתק!',
 
     // Settings panel
     settingsEditTitle: 'ערוך הגדרות',

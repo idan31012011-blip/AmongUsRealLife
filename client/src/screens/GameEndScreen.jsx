@@ -27,6 +27,7 @@ export default function GameEndScreen() {
     imposter_wins: t('reasonImposterWins'),
     manager_ended: t('reasonManagerEnded'),
     critical_countdown_expired: t('reasonCriticalCountdownExpired'),
+    imposter_disconnected: t('reasonImposterDisconnected'),
   }[winReason] || '';
 
   function playAgain() {
