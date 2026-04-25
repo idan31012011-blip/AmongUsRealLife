@@ -4,6 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import socket from '../socket';
 import { QRCodeSVG } from 'qrcode.react';
 import SettingsPanel from '../components/SettingsPanel';
+import Modal from '../components/Modal';
 
 export default function LobbyScreen() {
   const { state } = useGame();
@@ -11,6 +12,7 @@ export default function LobbyScreen() {
   const { gameCode, players, isManager, myId, rooms, settings, stationAssignments, easyModePlayers } = state;
   const [copied, setCopied] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [pendingTransferTarget, setPendingTransferTarget] = useState(null);
   const activePlayers = players.filter(p => !p.disconnected);
   const canStart = activePlayers.length >= 3;
 
@@ -33,6 +35,12 @@ export default function LobbyScreen() {
 
   function kickPlayer(playerId) {
     socket.emit('kick_player', { code: gameCode, targetId: playerId });
+  }
+
+  function confirmTransfer() {
+    if (!pendingTransferTarget) return;
+    socket.emit('transfer_manager', { code: gameCode, targetId: pendingTransferTarget.id });
+    setPendingTransferTarget(null);
   }
 
   const need = 3 - activePlayers.length;
@@ -88,6 +96,15 @@ export default function LobbyScreen() {
               {p.disconnected && ' 📵'}
             </span>
             {p.id === state.managerId && <span className="badge">{t('hostBadge')}</span>}
+            {isManager && p.id !== myId && !p.disconnected && (
+              <button
+                className="btn-make-host"
+                onClick={() => setPendingTransferTarget(p)}
+                title={t('makeHostTitle', p.name)}
+              >
+                {t('makeHostBtn')}
+              </button>
+            )}
             {isManager && p.id !== myId && (
               <button
                 className="btn-kick"
@@ -130,6 +147,14 @@ export default function LobbyScreen() {
           myId={myId}
           easyModePlayers={easyModePlayers}
         />
+      )}
+
+      {pendingTransferTarget && (
+        <Modal title={t('transferHostTitle')} onClose={() => setPendingTransferTarget(null)}>
+          <p className="confirm-msg">{t('transferHostConfirm', pendingTransferTarget.name)}</p>
+          <button className="btn btn-red modal-player-btn" onClick={confirmTransfer}>{t('transferHostBtn')}</button>
+          <button className="btn btn-ghost modal-player-btn" onClick={() => setPendingTransferTarget(null)}>{t('cancel')}</button>
+        </Modal>
       )}
     </div>
   );

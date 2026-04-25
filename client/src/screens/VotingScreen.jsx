@@ -17,6 +17,7 @@ export default function VotingScreen() {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showForceEndVoting, setShowForceEndVoting] = useState(false);
   const [pendingKickTarget, setPendingKickTarget] = useState(null);
+  const [pendingKillTarget, setPendingKillTarget] = useState(null);
 
   function endGame() {
     socket.emit('end_game', { code: gameCode });
@@ -32,6 +33,12 @@ export default function VotingScreen() {
     if (!pendingKickTarget) return;
     socket.emit('kick_player', { code: gameCode, targetId: pendingKickTarget.id });
     setPendingKickTarget(null);
+  }
+
+  function confirmMeetingKill() {
+    if (!pendingKillTarget) return;
+    socket.emit('manager_kill_during_voting', { code: gameCode, targetId: pendingKillTarget.id });
+    setPendingKillTarget(null);
   }
 
   const livingPlayers = players.filter(p => p.isAlive);
@@ -99,6 +106,9 @@ export default function VotingScreen() {
               {myVote === p.id && <div className="vote-check">✓</div>}
             </button>
             {isManager && p.id !== myId && (
+              <button className="btn-kill-overlay" onClick={() => setPendingKillTarget(p)} title={t('killDuringVotingBtn')}>💀</button>
+            )}
+            {isManager && p.id !== myId && (
               <button className="btn-kick-overlay" onClick={() => setPendingKickTarget(p)}>✕</button>
             )}
           </div>
@@ -165,6 +175,14 @@ export default function VotingScreen() {
           <p className="confirm-msg">{t('kickPlayerConfirm', pendingKickTarget.name)}</p>
           <button className="btn btn-red modal-player-btn" onClick={confirmKick}>{t('kickPlayerBtn')}</button>
           <button className="btn btn-ghost modal-player-btn" onClick={() => setPendingKickTarget(null)}>{t('cancel')}</button>
+        </Modal>
+      )}
+
+      {pendingKillTarget && (
+        <Modal title={t('killDuringVotingTitle')} onClose={() => setPendingKillTarget(null)}>
+          <p className="confirm-msg">{t('killDuringVotingConfirm', pendingKillTarget.name)}</p>
+          <button className="btn btn-red modal-player-btn" onClick={confirmMeetingKill}>{t('killDuringVotingBtn')}</button>
+          <button className="btn btn-ghost modal-player-btn" onClick={() => setPendingKillTarget(null)}>{t('cancel')}</button>
         </Modal>
       )}
 

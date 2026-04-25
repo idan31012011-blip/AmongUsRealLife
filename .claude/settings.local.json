@@ -21,7 +21,8 @@
       "Bash(git commit -m 'fix: station meeting button and report body mode activation *)",
       "Bash(git push *)",
       "Bash(git commit -m 'fix: station meeting toggle visual state was broken in lobby *)",
-      "Bash(node -e \"require\\('./server/gameManager'\\); require\\('./server/gameLogic'\\); require\\('./server/socketHandlers'\\); console.log\\('Server modules OK'\\)\")"
+      "Bash(node -e \"require\\('./server/gameManager'\\); require\\('./server/gameLogic'\\); require\\('./server/socketHandlers'\\); console.log\\('Server modules OK'\\)\")",
+      "Bash(git *)"
     ]
   }
 }

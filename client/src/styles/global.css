@@ -1688,6 +1688,55 @@ input {
   background: rgba(232, 41, 74, 0.1);
 }
 
+/* ── Vote card wrapper (manager overlay buttons) ──────────────────────────── */
+.vote-card-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.btn-kick-overlay,
+.btn-kill-overlay {
+  width: 100%;
+  padding: 4px 0;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid;
+  margin-top: 4px;
+  transition: background 0.15s;
+}
+
+.btn-kick-overlay {
+  background: rgba(232, 41, 74, 0.1);
+  border-color: rgba(232, 41, 74, 0.3);
+  color: var(--color-red);
+}
+.btn-kick-overlay:active { background: rgba(232, 41, 74, 0.25); }
+
+.btn-kill-overlay {
+  background: rgba(160, 32, 240, 0.1);
+  border-color: rgba(160, 32, 240, 0.35);
+  color: #c06aff;
+}
+.btn-kill-overlay:active { background: rgba(160, 32, 240, 0.25); }
+
+/* ── Make-host button (lobby) ─────────────────────────────────────────────── */
+.btn-make-host {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 200, 0, 0.1);
+  border: 1px solid rgba(255, 200, 0, 0.35);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.btn-make-host:active { background: rgba(255, 200, 0, 0.25); }
+
 /* ── Game End Screen (staged reveal) ─────────────────────────────────────── */
 .game-end-screen {
   align-items: center;

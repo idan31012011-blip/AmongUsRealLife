@@ -305,6 +305,21 @@ function reducer(state, action) {
         reportBodyWindowEnd: null,
       };
 
+    case 'MANAGER_CHANGED':
+      return {
+        ...state,
+        managerId: action.newManagerId,
+        isManager: state.myId === action.newManagerId,
+      };
+
+    case 'PLAYER_KILLED_BY_MANAGER':
+      return {
+        ...state,
+        players: action.players,
+        isAlive: state.myId === action.playerId ? false : state.isAlive,
+        totalVotesIn: action.totalVotes ?? state.totalVotesIn,
+      };
+
     case 'GAME_RESET':
       return {
         ...initialState,
@@ -314,7 +329,8 @@ function reducer(state, action) {
         players: action.players,
         rooms: action.rooms,
         settings: action.settings ?? state.settings,
-        isManager: state.isManager,
+        isManager: action.managerId ? state.myId === action.managerId : state.isManager,
+        managerId: action.managerId ?? state.managerId,
         myName: state.myName,
         stationAssignments: action.stationAssignments ?? [],
         easyModePlayers: action.easyModePlayers ?? [],
@@ -606,6 +622,14 @@ export function GameProvider({ children }) {
       dispatch({ type: 'KILL_COOLDOWN_STARTED', cooldownUntil });
     });
 
+    socket.on('manager_changed', ({ newManagerId }) => {
+      dispatch({ type: 'MANAGER_CHANGED', newManagerId });
+    });
+
+    socket.on('player_killed_by_manager', ({ playerId, players, totalVotes }) => {
+      dispatch({ type: 'PLAYER_KILLED_BY_MANAGER', playerId, players, totalVotes });
+    });
+
     socket.on('player_kicked', ({ playerId }) => {
       dispatch({ type: 'PLAYER_KICKED', playerId });
     });
@@ -695,6 +719,8 @@ export function GameProvider({ children }) {
       socket.off('vote_cast');
       socket.off('vote_results');
       socket.off('voting_ended');
+      socket.off('manager_changed');
+      socket.off('player_killed_by_manager');
       socket.off('player_kicked');
       socket.off('game_over');
       socket.off('game_reset');

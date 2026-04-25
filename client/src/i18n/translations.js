@@ -276,6 +276,18 @@ export const translations = {
     easyModeDesc: 'Easy mode players get number questions instead of text questions.',
     easyModeBadge: 'Easy',
     noEasyModePlayers: 'No players in easy mode.',
+
+    // Manager transfer (lobby)
+    makeHostBtn: '👑',
+    makeHostTitle: (name) => `Make ${name} host`,
+    transferHostTitle: 'Transfer Host',
+    transferHostConfirm: (name) => `Make ${name} the new host?`,
+    transferHostBtn: 'Make Host',
+
+    // Kill during voting
+    killDuringVotingBtn: 'Eliminate',
+    killDuringVotingTitle: 'Eliminate Player',
+    killDuringVotingConfirm: (name) => `Mark ${name} as eliminated? They can do tasks immediately after the meeting.`,
   },
 
   he: {
@@ -547,6 +559,18 @@ export const translations = {
     easyModeDesc: 'שחקנים במצב קל יקבלו שאלות מספרים במקום שאלות טקסט.',
     easyModeBadge: 'קל',
     noEasyModePlayers: 'אין שחקנים במצב קל.',
+
+    // Manager transfer (lobby)
+    makeHostBtn: '👑',
+    makeHostTitle: (name) => `הפוך את ${name} למארח`,
+    transferHostTitle: 'העבר מארח',
+    transferHostConfirm: (name) => `להפוך את ${name} למארח החדש?`,
+    transferHostBtn: 'הפוך למארח',
+
+    // Kill during voting
+    killDuringVotingBtn: 'חסל',
+    killDuringVotingTitle: 'חיסול שחקן',
+    killDuringVotingConfirm: (name) => `לסמן את ${name} כמת? הוא יוכל לבצע משימות מיד לאחר הישיבה.`,
   },
 };
 

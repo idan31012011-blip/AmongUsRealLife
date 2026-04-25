@@ -409,6 +409,17 @@ function registerHandlers(io, socket) {
     io.to(code).emit('stations_updated', { stations: buildStationList(game) });
   });
 
+  socket.on('transfer_manager', ({ code, targetId } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'lobby') return socket.emit('error', { message: 'Can only transfer host in the lobby.' });
+    if (socket.id !== game.managerId) return socket.emit('error', { message: 'Only the host can transfer.' });
+    if (!game.players.has(targetId)) return socket.emit('error', { message: 'Player not found.' });
+    if (targetId === socket.id) return;
+
+    game.managerId = targetId;
+    io.to(code).emit('manager_changed', { newManagerId: targetId });
+  });
+
   socket.on('start_game', ({ code } = {}) => {
     const game = getGame(code);
     if (!game) return socket.emit('error', { message: 'Game not found.' });
@@ -1044,6 +1055,38 @@ function registerHandlers(io, socket) {
     resolveVoting(io, game);
   });
 
+  socket.on('manager_kill_during_voting', ({ code, targetId } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'voting') return socket.emit('error', { message: 'Not in voting phase.' });
+    if (socket.id !== game.managerId) return socket.emit('error', { message: 'Only manager can do this.' });
+
+    const target = game.players.get(targetId);
+    if (!target || !target.isAlive) return socket.emit('error', { message: 'Invalid target.' });
+    if (game.stations.has(targetId)) return socket.emit('error', { message: 'Cannot eliminate a station.' });
+
+    target.isAlive = false;
+    target.bodyFound = true; // can do tasks immediately after the meeting ends
+    game.votes.delete(targetId); // remove their vote if they had cast one
+
+    io.to(code).emit('player_killed_by_manager', {
+      playerId: targetId,
+      players: buildPublicPlayerList(game.players),
+      totalVotes: game.votes.size,
+    });
+
+    const result = checkWinConditions(game);
+    if (result) {
+      setTimeout(() => endGame(io, game, result), 2000);
+      return;
+    }
+
+    // Resolve voting if all remaining living players have already voted
+    const livingVoters = [...game.players.values()].filter(p => p.isAlive && !game.stations.has(p.id));
+    if (livingVoters.length > 0 && game.votes.size >= livingVoters.length) {
+      resolveVoting(io, game);
+    }
+  });
+
   // ─── MANAGER CONTROLS ─────────────────────────────────────────────────────
 
   socket.on('end_game', ({ code } = {}) => {
@@ -1120,6 +1163,7 @@ function registerHandlers(io, socket) {
       settings: game.settings,
       stationAssignments: buildStationList(game),
       easyModePlayers: [...game.easyModePlayers],
+      managerId: game.managerId,
     });
   });
 
@@ -1140,6 +1184,16 @@ function registerHandlers(io, socket) {
         player.disconnected = true;
         io.to(game.code).emit('player_left', { playerId: socket.id });
       }
+
+      // Auto-transfer manager role if manager disconnected
+      if (socket.id === game.managerId) {
+        const nextManager = [...game.players.values()].find(p => !p.disconnected);
+        if (nextManager) {
+          game.managerId = nextManager.id;
+          io.to(game.code).emit('manager_changed', { newManagerId: nextManager.id });
+        }
+      }
+
       const hasConnected = [...game.players.values()].some(p => !p.disconnected);
       if (!hasConnected && !game.lobbyCleanupTimeout) {
         // Give 60s for players to reconnect before deleting the game
@@ -1168,6 +1222,15 @@ function registerHandlers(io, socket) {
       }
       player.disconnected = true;
       io.to(game.code).emit('player_disconnected', { playerId: socket.id });
+    }
+
+    // Auto-transfer manager role if manager disconnected during gameplay/voting
+    if (socket.id === game.managerId) {
+      const nextManager = [...game.players.values()].find(p => !p.disconnected && !game.stations.has(p.id));
+      if (nextManager) {
+        game.managerId = nextManager.id;
+        io.to(game.code).emit('manager_changed', { newManagerId: nextManager.id });
+      }
     }
 
     // Give 60s to reconnect; if not back, remove them from the active game
