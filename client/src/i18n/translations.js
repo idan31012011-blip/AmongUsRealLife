@@ -277,6 +277,15 @@ export const translations = {
     easyModeBadge: 'Easy',
     noEasyModePlayers: 'No players in easy mode.',
 
+    // Reconnection
+    connectionLost: 'Connection Lost',
+    reconnectingMsg: 'Reconnecting automatically…',
+    reconnectGameCode: (code) => `Game: ${code}`,
+    reconnectBtn: 'Reconnect Now',
+    continueGameLabel: 'Interrupted session detected',
+    continueGameBtn: 'Continue Game',
+    continueGameDismiss: 'Dismiss',
+
     // Manager transfer (lobby)
     makeHostBtn: '👑',
     makeHostTitle: (name) => `Make ${name} host`,
@@ -571,6 +580,15 @@ export const translations = {
     killDuringVotingBtn: 'חסל',
     killDuringVotingTitle: 'חיסול שחקן',
     killDuringVotingConfirm: (name) => `לסמן את ${name} כמת? הוא יוכל לבצע משימות מיד לאחר הישיבה.`,
+
+    // Reconnection
+    connectionLost: 'החיבור אבד',
+    reconnectingMsg: 'מתחבר מחדש אוטומטית…',
+    reconnectGameCode: (code) => `משחק: ${code}`,
+    reconnectBtn: 'התחבר עכשיו',
+    continueGameLabel: 'זוהתה הפסקה במשחק',
+    continueGameBtn: 'המשך משחק',
+    continueGameDismiss: 'בטל',
   },
 };
 

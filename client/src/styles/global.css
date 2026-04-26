@@ -1331,6 +1331,103 @@ input {
 }
 .btn-kick:active { background: rgba(232, 41, 74, 0.3); }
 
+/* ── Reconnect overlay ───────────────────────────────────────────────────── */
+.reconnect-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(0, 0, 0, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.reconnect-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+}
+
+.reconnect-icon { font-size: 40px; }
+
+.reconnect-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.reconnect-sub {
+  font-size: 14px;
+  color: var(--color-text-dim);
+  margin: 0;
+}
+
+.reconnect-spinner {
+  width: 28px;
+  height: 28px;
+  margin: var(--space-sm) 0;
+}
+
+.reconnect-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reconnect-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.reconnect-code {
+  font-size: 13px;
+  color: var(--color-text-dim);
+  letter-spacing: 1px;
+}
+
+/* ── Home screen rejoin card ─────────────────────────────────────────────── */
+.rejoin-card {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+  padding: var(--space-md);
+}
+
+.rejoin-label {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.rejoin-info {
+  font-size: 15px;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.rejoin-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
 /* ── Meeting Animation Screen ────────────────────────────────────────────── */
 .meeting-screen {
   background: radial-gradient(ellipse at center, #1a0008 0%, #0d0d1a 70%);

@@ -9,6 +9,7 @@ import MeetingAnimationScreen from './screens/MeetingAnimationScreen';
 import VotingScreen from './screens/VotingScreen';
 import GameEndScreen from './screens/GameEndScreen';
 import StationScreen from './screens/StationScreen';
+import ReconnectOverlay from './components/ReconnectOverlay';
 
 export default function App() {
   const { state } = useGame();
@@ -26,12 +27,18 @@ export default function App() {
     station: <StationScreen />,
   };
 
+  // Show reconnect overlay when socket drops while player is in an active game
+  const inGame = state.gameCode && !['home', 'setup'].includes(state.phase);
+
   return (
     <div className="app">
       {state.error && (
         <div className="error-toast">{state.error}</div>
       )}
       {screens[state.phase] ?? <HomeScreen />}
+      {!state.isOnline && inGame && (
+        <ReconnectOverlay gameCode={state.gameCode} playerName={state.myName} />
+      )}
     </div>
   );
 }

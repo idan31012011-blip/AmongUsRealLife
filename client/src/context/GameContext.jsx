@@ -40,6 +40,7 @@ const defaultSabotage = {
 const initialState = {
   gameCode: null,
   phase: 'home',         // 'home' | 'setup' | 'lobby' | 'role_reveal' | 'gameplay' | 'station' | 'meeting_animation' | 'voting' | 'game_end'
+  isOnline: true,
   myId: null,
   myRole: null,          // 'imposter' | 'crewmate' | 'station'
   myName: null,
@@ -110,6 +111,12 @@ function reducer(state, action) {
   }
 
   switch (action.type) {
+    case 'CONNECTION_LOST':
+      return { ...state, isOnline: false };
+
+    case 'CONNECTION_RESTORED':
+      return { ...state, isOnline: true };
+
     case 'SET_MY_ID':
       return { ...state, myId: action.id };
 
@@ -520,11 +527,16 @@ export function GameProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    // Set socket ID
+    // Connection state
     socket.on('connect', () => {
       dispatch({ type: 'SET_MY_ID', id: socket.id });
+      dispatch({ type: 'CONNECTION_RESTORED' });
     });
     if (socket.id) dispatch({ type: 'SET_MY_ID', id: socket.id });
+
+    socket.on('disconnect', () => {
+      dispatch({ type: 'CONNECTION_LOST' });
+    });
 
     socket.on('game_created', ({ code }) => {
       dispatch({ type: 'GAME_CREATED', code });
@@ -695,6 +707,7 @@ export function GameProvider({ children }) {
 
     return () => {
       socket.off('connect');
+      socket.off('disconnect');
       socket.off('game_created');
       socket.off('game_joined');
       socket.off('player_joined');

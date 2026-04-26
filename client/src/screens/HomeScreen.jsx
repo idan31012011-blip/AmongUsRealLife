@@ -9,16 +9,36 @@ export default function HomeScreen() {
   const [joinCode, setJoinCode] = useState('');
   const [joinName, setJoinName] = useState('');
   const [view, setView] = useState('main'); // 'main' | 'join'
+  const [savedGame, setSavedGame] = useState(null); // { code, name } from localStorage
 
-  // Auto-fill code from URL ?join=XXXXXX
   useEffect(() => {
+    // Auto-fill code from URL ?join=XXXXXX
     const params = new URLSearchParams(window.location.search);
     const code = params.get('join');
     if (code) {
       setJoinCode(code.toUpperCase());
       setView('join');
+      return;
+    }
+    // Detect interrupted session from a previous page load
+    const savedCode = localStorage.getItem('gameCode');
+    const savedName = localStorage.getItem('playerName');
+    if (savedCode && savedName) {
+      setSavedGame({ code: savedCode, name: savedName });
     }
   }, []);
+
+  function handleRejoin() {
+    if (!savedGame) return;
+    dispatch({ type: 'SET_MY_NAME', name: savedGame.name });
+    socket.emit('rejoin_game', { code: savedGame.code, name: savedGame.name });
+  }
+
+  function dismissRejoin() {
+    localStorage.removeItem('gameCode');
+    localStorage.removeItem('playerName');
+    setSavedGame(null);
+  }
 
   function handleJoin(e) {
     e.preventDefault();
@@ -75,6 +95,24 @@ export default function HomeScreen() {
         <h1 className="logo-title">Among Us IRL</h1>
         <p className="logo-sub">{t('appSubtitle')}</p>
       </div>
+
+      {savedGame && (
+        <div className="rejoin-card card">
+          <p className="rejoin-label">{t('continueGameLabel')}</p>
+          <p className="rejoin-info">
+            <strong>{savedGame.name}</strong> · {savedGame.code}
+          </p>
+          <div className="rejoin-actions">
+            <button className="btn btn-blue" onClick={handleRejoin}>
+              {t('continueGameBtn')}
+            </button>
+            <button className="btn btn-ghost btn-small" onClick={dismissRejoin}>
+              {t('continueGameDismiss')}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="home-buttons">
         <button className="btn btn-red btn-large" onClick={() => dispatch({ type: 'GO_TO_SETUP' })}>
           {t('createGame')}
