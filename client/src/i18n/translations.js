@@ -297,6 +297,13 @@ export const translations = {
     killDuringVotingBtn: 'Eliminate',
     killDuringVotingTitle: 'Eliminate Player',
     killDuringVotingConfirm: (name) => `Mark ${name} as eliminated? They can do tasks immediately after the meeting.`,
+
+    // Self-report kill
+    selfKillBtn: 'I Was Killed',
+    selfKillTitle: 'I Was Killed',
+    selfKillConfirmMsg: 'Did the imposter kill you? This will mark you as dead and reset the kill cooldown.',
+    selfKillConfirmBtn: 'Yes, I Was Killed',
+    undoSelfKillBtn: '↩ I\'m Alive — Undo',
   },
 
   he: {
@@ -580,6 +587,13 @@ export const translations = {
     killDuringVotingBtn: 'חסל',
     killDuringVotingTitle: 'חיסול שחקן',
     killDuringVotingConfirm: (name) => `לסמן את ${name} כמת? הוא יוכל לבצע משימות מיד לאחר הישיבה.`,
+
+    // Self-report kill
+    selfKillBtn: 'חוסלתי',
+    selfKillTitle: 'חוסלתי',
+    selfKillConfirmMsg: 'האימפוסטר חיסל אותך? פעולה זו תסמן אותך כמת ותאפס את זמן הקירור.',
+    selfKillConfirmBtn: 'כן, חוסלתי',
+    undoSelfKillBtn: '↩ אני חי — בטל',
 
     // Reconnection
     connectionLost: 'החיבור אבד',

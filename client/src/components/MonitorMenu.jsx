@@ -20,6 +20,7 @@ export default function MonitorMenu({ onClose }) {
         isDying: false,
         isDead: !p.isAlive,
         dyingStartTime: null,
+        dyingTimeoutId: null,
       };
     }
   });
@@ -42,14 +43,33 @@ export default function MonitorMenu({ onClose }) {
       if (!p.isAlive && !s.isDead && !s.isDying) {
         s.isDying = true;
         s.dyingStartTime = Date.now();
-        setTimeout(() => {
+        s.dyingTimeoutId = setTimeout(() => {
           s.isDead = true;
           s.isDying = false;
           s.magnitude = 0;
+          s.dyingTimeoutId = null;
         }, 8000);
       }
     });
   }, [players]);
+
+  // Watch for self-kill undos → cancel dying animation and restore heartbeat
+  useEffect(() => {
+    function onSelfKillUndone({ victimId }) {
+      const s = statesRef.current[victimId];
+      if (!s) return;
+      if (s.dyingTimeoutId) {
+        clearTimeout(s.dyingTimeoutId);
+        s.dyingTimeoutId = null;
+      }
+      s.isDying = false;
+      s.isDead = false;
+      s.dyingStartTime = null;
+      s.magnitude = 0;
+    }
+    socket.on('self_kill_undone', onSelfKillUndone);
+    return () => socket.off('self_kill_undone', onSelfKillUndone);
+  }, []);
 
   return (
     <div className="monitor-overlay">

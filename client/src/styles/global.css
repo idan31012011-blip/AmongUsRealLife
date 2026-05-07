@@ -2081,6 +2081,24 @@ input {
   margin-top: var(--space-md);
 }
 
+/* ── Self-Kill Button (game bottom bar) ─────────────────────────────────── */
+.btn-self-kill .btn-action-icon { color: var(--color-red); opacity: 0.75; }
+.btn-self-kill .btn-action-label { color: var(--color-red); opacity: 0.75; }
+
+/* ── Undo Self-Kill Button (dead locked screen) ─────────────────────────── */
+.btn-undo-self-kill {
+  margin-top: var(--space-lg);
+  border: 2px solid var(--color-green);
+  color: var(--color-green);
+  min-width: 200px;
+  animation: undoPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes undoPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(0, 255, 136, 0); }
+  50%       { box-shadow: 0 0 14px rgba(0, 255, 136, 0.5); }
+}
+
 /* ── Sabotage Button (game bottom bar) ───────────────────────────────────── */
 .btn-sabotage .btn-action-icon { color: var(--color-yellow); }
 

@@ -39,6 +39,8 @@ export default function HeartbeatLine({ getState }) {
     let smoothed = 0;
     let framesSinceBeat = 999; // large so first beat fires immediately
     let beatInterval = FPS;   // frames between beat starts (smoothed)
+    let wasDeadLastFrame = false;
+    let wasDyingLastFrame = false;
 
     ctx.fillStyle = '#060d1a';
     ctx.fillRect(0, 0, W, H);
@@ -49,6 +51,15 @@ export default function HeartbeatLine({ getState }) {
       const isDying = s?.isDying ?? false;
       const dyingStart = s?.dyingStartTime ?? null;
       const rawMag = s?.magnitude ?? 0;
+
+      // Reset beat state when a player is revived (transitions from dead/dying back to alive)
+      if ((wasDeadLastFrame || wasDyingLastFrame) && !isDead && !isDying) {
+        framesSinceBeat = 999;
+        beatInterval = FPS;
+        smoothed = 0;
+      }
+      wasDeadLastFrame = isDead;
+      wasDyingLastFrame = isDying;
 
       // dyingFactor: 1 → 0 over 8 seconds
       let dyingFactor = 1;

@@ -72,6 +72,7 @@ const initialState = {
   pendingStationNotice: null, // { roomName } — shown when station disconnects
   isDoctor: false,           // doctor sub-role
   reportBodyWindowEnd: null, // ms timestamp when current report window expires (null = no window)
+  canUndoSelfKill: false,    // crewmate self-reported dead and can still undo before next meeting
   easyModePlayers: [],       // [playerId] — players assigned easy mode (lobby only)
   isEasyMode: false,         // whether this player is in easy mode
 };
@@ -235,6 +236,25 @@ function reducer(state, action) {
       // Victim confirmed death locally — go back to gameplay as a dead player
       return { ...state, phase: 'gameplay', isAlive: false };
 
+    case 'SELF_KILL_INITIATED':
+      // Crewmate self-reported as killed — immediately in ghost state, undo available
+      return { ...state, isAlive: false, canUndoSelfKill: true };
+
+    case 'SELF_KILL_FINALIZED':
+      // Imposter killed the already-self-reported player — undo no longer possible
+      return { ...state, canUndoSelfKill: false };
+
+    case 'SELF_KILL_UNDONE':
+      return {
+        ...state,
+        canUndoSelfKill: false,
+        isAlive: state.myId === action.victimId ? true : state.isAlive,
+        players: state.players.map(p =>
+          p.id === action.victimId ? { ...p, isAlive: true } : p
+        ),
+        killCooldownUntil: state.myRole === 'imposter' ? action.cooldownUntil : state.killCooldownUntil,
+      };
+
     case 'KILL_CONFIRMED':
       return {
         ...state,
@@ -262,6 +282,7 @@ function reducer(state, action) {
         totalVotesIn: 0,
         ejectedPlayer: null,
         lastMeeting: { reason: action.reason, reporterName: action.reporterName, bodyName: action.bodyName },
+        canUndoSelfKill: false,
         // Clear active sabotages and report window UI when a meeting starts
         sabotage: {
           ...state.sabotage,
@@ -606,6 +627,18 @@ export function GameProvider({ children }) {
       dispatch({ type: 'KILL_CONFIRMED', victimId, cooldownUntil });
     });
 
+    socket.on('self_kill_initiated', () => {
+      dispatch({ type: 'SELF_KILL_INITIATED' });
+    });
+
+    socket.on('self_kill_undone', ({ victimId, cooldownUntil }) => {
+      dispatch({ type: 'SELF_KILL_UNDONE', victimId, cooldownUntil });
+    });
+
+    socket.on('self_kill_finalized', () => {
+      dispatch({ type: 'SELF_KILL_FINALIZED' });
+    });
+
     socket.on('body_report_window_opened', ({ expiresAt }) => {
       dispatch({ type: 'BODY_REPORT_WINDOW_OPENED', expiresAt });
     });
@@ -725,6 +758,9 @@ export function GameProvider({ children }) {
       socket.off('task_completed');
       socket.off('kill_initiated');
       socket.off('kill_confirmed');
+      socket.off('self_kill_initiated');
+      socket.off('self_kill_undone');
+      socket.off('self_kill_finalized');
       socket.off('kill_cooldown_started');
       socket.off('body_report_window_opened');
       socket.off('body_report_window_closed');

@@ -72,9 +72,10 @@ export default function GameScreen() {
   const {
     myRole, isAlive, players, gameCode, taskProgressPercent, myId, isManager,
     settings, sabotage, pendingLockNotification, pendingStationNotice, rooms, isDoctor,
-    reportBodyWindowEnd,
+    reportBodyWindowEnd, canUndoSelfKill,
   } = state;
 
+  const [showSelfKillConfirm, setShowSelfKillConfirm] = useState(false);
   const [showKillMenu, setShowKillMenu] = useState(false);
   const [pendingKillTarget, setPendingKillTarget] = useState(null);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
@@ -110,6 +111,15 @@ export default function GameScreen() {
 
   function iWasFound() {
     socket.emit('i_was_found', { code: gameCode });
+  }
+
+  function selfReportKill() {
+    socket.emit('self_report_kill', { code: gameCode });
+    setShowSelfKillConfirm(false);
+  }
+
+  function undoSelfKill() {
+    socket.emit('undo_self_kill', { code: gameCode });
   }
 
   function endGame() {
@@ -164,6 +174,11 @@ export default function GameScreen() {
           <h2>{t('ghostTitle')}</h2>
           <p>{t('waitingForMeeting')}</p>
           <p className="locked-sub">{t('lockedDeadSub')}</p>
+          {canUndoSelfKill && (
+            <button className="btn btn-ghost btn-undo-self-kill" onClick={undoSelfKill}>
+              {t('undoSelfKillBtn')}
+            </button>
+          )}
         </div>
       ) : (
         <div className="task-area">
@@ -220,6 +235,13 @@ export default function GameScreen() {
             </button>
           )}
 
+          {!isImposter && (
+            <button className="btn-action btn-self-kill" onClick={() => setShowSelfKillConfirm(true)}>
+              <span className="btn-action-icon">💀</span>
+              <span className="btn-action-label">{t('selfKillBtn')}</span>
+            </button>
+          )}
+
           {isDoctor && (
             <button className="btn-action btn-monitor" onClick={() => setShowMonitor(true)}>
               <span className="btn-action-icon">{t('doctorBtn')}</span>
@@ -257,6 +279,19 @@ export default function GameScreen() {
             {t('endGameBtn')}
           </button>
         </div>
+      )}
+
+      {/* Self-kill confirmation */}
+      {showSelfKillConfirm && (
+        <Modal title={t('selfKillTitle')} onClose={() => setShowSelfKillConfirm(false)}>
+          <p className="confirm-msg">{t('selfKillConfirmMsg')}</p>
+          <button className="btn btn-red modal-player-btn" onClick={selfReportKill}>
+            {t('selfKillConfirmBtn')}
+          </button>
+          <button className="btn btn-ghost modal-player-btn" onClick={() => setShowSelfKillConfirm(false)}>
+            {t('cancel')}
+          </button>
+        </Modal>
       )}
 
       {/* Kill target picker */}

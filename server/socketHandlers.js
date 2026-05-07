@@ -58,6 +58,9 @@ function registerHandlers(io, socket) {
       tasksAssigned: [],
       tasksCompleted: new Set(),
       hasCalledEmergency: false,
+      selfReported: false,
+      selfKillTime: null,
+      savedKillCooldownUntil: null,
     };
 
     game.players.set(socket.id, player);
@@ -707,7 +710,16 @@ function registerHandlers(io, socket) {
     }
 
     const target = game.players.get(targetId);
-    if (!target || !target.isAlive) return socket.emit('error', { message: 'Invalid target.' });
+    if (!target) return socket.emit('error', { message: 'Invalid target.' });
+    if (!target.isAlive) {
+      // If the target already self-reported, finalize their death (removes undo) but don't reset cooldown
+      if (target.selfReported) {
+        target.selfReported = false;
+        target.savedKillCooldownUntil = null;
+        io.to(targetId).emit('self_kill_finalized');
+      }
+      return;
+    }
     if (game.stations.has(targetId)) return socket.emit('error', { message: 'Cannot kill a station device.' });
 
     const now = Date.now();
@@ -749,6 +761,67 @@ function registerHandlers(io, socket) {
 
   socket.on('confirm_death', () => {
     // Death is now immediate on kill — this event is no longer used server-side
+  });
+
+  // ─── SELF-REPORT KILL ─────────────────────────────────────────────────────
+
+  socket.on('self_report_kill', ({ code } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return;
+
+    const player = game.players.get(socket.id);
+    if (!player || !player.isAlive || player.role === 'imposter' || player.role === 'station') return;
+
+    const now = Date.now();
+    player.isAlive = false;
+    player.selfReported = true;
+    player.selfKillTime = now;
+    player.savedKillCooldownUntil = game.imposterKillCooldownUntil;
+
+    game.imposterKillCooldownUntil = now + game.settings.killCooldown;
+
+    const imposter = [...game.players.values()].find(p => p.role === 'imposter');
+    if (imposter) {
+      io.to(imposter.id).emit('kill_cooldown_started', { cooldownUntil: game.imposterKillCooldownUntil });
+    }
+
+    // Private event to the victim — lets them show the undo button
+    socket.emit('self_kill_initiated');
+
+    // Broadcast death identically to a real kill — doctor sees dying heartbeat, everyone sees them dead
+    io.to(code).emit('kill_confirmed', {
+      victimId: socket.id,
+      cooldownUntil: game.imposterKillCooldownUntil,
+    });
+
+    const result = checkWinConditions(game);
+    if (result) endGame(io, game, result);
+  });
+
+  socket.on('undo_self_kill', ({ code } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return;
+
+    const player = game.players.get(socket.id);
+    if (!player || player.isAlive || !player.selfReported) return;
+
+    player.isAlive = true;
+    player.selfReported = false;
+
+    // Restore imposter cooldown to what it was before the self-report
+    game.imposterKillCooldownUntil = player.savedKillCooldownUntil;
+    player.savedKillCooldownUntil = null;
+    player.selfKillTime = null;
+
+    const imposter = [...game.players.values()].find(p => p.role === 'imposter');
+    if (imposter) {
+      io.to(imposter.id).emit('kill_cooldown_started', { cooldownUntil: game.imposterKillCooldownUntil });
+    }
+
+    io.to(code).emit('self_kill_undone', {
+      victimId: socket.id,
+      cooldownUntil: game.imposterKillCooldownUntil,
+    });
   });
 
   // ─── SABOTAGE ─────────────────────────────────────────────────────────────
@@ -1407,8 +1480,13 @@ function startMeeting(io, game, { reason, reporterId, bodyId }) {
   game.meetingHasOccurred = true;
 
   // Mark all dead players' bodies as found (they can now do tasks after meeting)
+  // Also lock in any self-reported deaths — undo is no longer possible once a meeting starts
   for (const p of game.players.values()) {
-    if (!p.isAlive) p.bodyFound = true;
+    if (!p.isAlive) {
+      p.bodyFound = true;
+      p.selfReported = false;
+      p.savedKillCooldownUntil = null;
+    }
   }
 
   const reporterName = game.players.get(reporterId)?.name || 'Unknown';
