@@ -235,7 +235,7 @@ export default function GameScreen() {
             </button>
           )}
 
-          {!isImposter && (
+          {(!isImposter || disguised) && (
             <button className="btn-action btn-self-kill" onClick={() => setShowSelfKillConfirm(true)}>
               <span className="btn-action-icon">💀</span>
               <span className="btn-action-label">{t('selfKillBtn')}</span>
