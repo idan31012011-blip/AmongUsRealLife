@@ -634,6 +634,16 @@ input {
   text-align: right;
 }
 
+.disconnected-players-notice {
+  padding: 6px var(--space-md);
+  background: rgba(200, 120, 0, 0.12);
+  border-bottom: 1px solid rgba(200, 120, 0, 0.35);
+  color: #c87800;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
 .role-badge {
   margin: var(--space-sm) var(--space-md);
   padding: 6px 16px;
@@ -1059,6 +1069,14 @@ input {
   font-size: 16px;
   color: var(--color-blue);
   font-weight: 900;
+}
+
+.vote-disconnected-badge {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: 13px;
+  opacity: 0.85;
 }
 
 .voted-notice {
@@ -2550,6 +2568,11 @@ input {
 [dir="rtl"] .vote-check {
   right: auto;
   left: 8px;
+}
+
+[dir="rtl"] .vote-disconnected-badge {
+  left: auto;
+  right: 8px;
 }
 
 [dir="rtl"] .player-reveal-name,

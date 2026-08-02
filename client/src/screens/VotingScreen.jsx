@@ -103,6 +103,7 @@ export default function VotingScreen() {
                 {p.name}
                 {p.id === myId && t('youSuffix')}
               </div>
+              {p.disconnected && <div className="vote-disconnected-badge" title={t('playerDisconnectedBadge')}>📡</div>}
               {myVote === p.id && <div className="vote-check">✓</div>}
             </button>
             {isManager && p.id !== myId && (

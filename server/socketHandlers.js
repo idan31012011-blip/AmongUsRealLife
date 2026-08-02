@@ -14,6 +14,19 @@ const {
 const socketMeta = new Map();
 
 function registerHandlers(io, socket) {
+  // A recovered socket (Socket.IO connectionStateRecovery) keeps its old id and is
+  // auto-rejoined into its previous rooms before this handler runs — so we can
+  // restore its "disconnected" flag without waiting for an explicit rejoin_game.
+  if (socket.recovered) {
+    const gameCode = [...socket.rooms].find(r => r !== socket.id);
+    const game = gameCode ? getGame(gameCode) : null;
+    const player = game?.players.get(socket.id);
+    if (player && player.disconnected) {
+      player.disconnected = false;
+      io.to(gameCode).emit('player_reconnected', { playerId: socket.id });
+    }
+  }
+
   // ─── LOBBY ────────────────────────────────────────────────────────────────
 
   socket.on('create_game', ({ rooms, settings } = {}) => {
@@ -1242,7 +1255,12 @@ function registerHandlers(io, socket) {
 
   // ─── DISCONNECT ───────────────────────────────────────────────────────────
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', reason => {
+    // reason tells network-death (transport close/error, ping timeout) apart from
+    // background suspension or a server-initiated drop — useful when debugging
+    // reports of "random" disconnects.
+    console.log(`[disconnect] socket=${socket.id} reason=${reason}`);
+
     const meta = socketMeta.get(socket.id);
     if (!meta) return;
 
@@ -1269,14 +1287,15 @@ function registerHandlers(io, socket) {
 
       const hasConnected = [...game.players.values()].some(p => !p.disconnected);
       if (!hasConnected && !game.lobbyCleanupTimeout) {
-        // Give 60s for players to reconnect before deleting the game
+        // Give players time to reconnect (e.g. a brief WiFi/cellular handoff or
+        // backgrounded phone) before deleting the game
         game.lobbyCleanupTimeout = setTimeout(() => {
           const g = getGame(game.code);
           if (!g) return;
           g.lobbyCleanupTimeout = null;
           const stillHasConnected = [...g.players.values()].some(p => !p.disconnected);
           if (!stillHasConnected) deleteGame(g.code);
-        }, 60000);
+        }, 90000);
       }
       return;
     }
@@ -1306,7 +1325,9 @@ function registerHandlers(io, socket) {
       }
     }
 
-    // Give 60s to reconnect; if not back, remove them from the active game
+    // Give players a longer grace period to reconnect (e.g. walked into a dead
+    // zone, or their phone's radio dropped while screen-locked) before treating
+    // them as gone for good.
     setTimeout(() => {
       const g = getGame(meta.gameCode);
       if (!g) return;
@@ -1324,7 +1345,7 @@ function registerHandlers(io, socket) {
           if (livingVoters.length > 0 && g.votes.size >= livingVoters.length) resolveVoting(io, g);
         }
       }
-    }, 60000);
+    }, 90000);
   });
 }
 

@@ -788,6 +788,41 @@ export function GameProvider({ children }) {
     };
   }, []);
 
+  // Keep the screen awake during active play. A locked screen is the single
+  // biggest cause of "random" disconnects — mobile browsers suspend timers and
+  // can close the websocket once the screen locks, which also makes the phone
+  // miss any meeting/kill/vote broadcast until it wakes back up.
+  useEffect(() => {
+    const activePhases = ['role_reveal', 'gameplay', 'meeting_animation', 'voting', 'killed', 'station'];
+    if (!activePhases.includes(state.phase) || !('wakeLock' in navigator)) return;
+
+    let wakeLock = null;
+    let cancelled = false;
+
+    async function requestWakeLock() {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+      } catch {
+        // Refused (e.g. low battery, not user-activated yet) — non-fatal.
+      }
+    }
+
+    requestWakeLock();
+
+    // The lock is released automatically when the tab is hidden; re-acquire
+    // it once the player comes back so it doesn't stay off for the rest of the game.
+    function handleVisibility() {
+      if (document.visibilityState === 'visible' && !cancelled) requestWakeLock();
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', handleVisibility);
+      wakeLock?.release().catch(() => {});
+    };
+  }, [state.phase]);
+
   // Motion broadcasting — runs for all non-station players during gameplay
   useEffect(() => {
     const activePhases = ['gameplay', 'voting', 'meeting_animation'];

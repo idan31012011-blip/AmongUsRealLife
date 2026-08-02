@@ -133,6 +133,8 @@ export default function GameScreen() {
     setPendingKickTarget(null);
   }
 
+  const disconnectedPlayers = players.filter(p => p.disconnected);
+
   const isDead = !isAlive;
   const isImposter = myRole === 'imposter';
   const myPlayer = players.find(p => p.id === myId);
@@ -149,6 +151,14 @@ export default function GameScreen() {
       <div className="game-topbar">
         <TaskProgressBar percent={taskProgressPercent} />
       </div>
+
+      {/* Disconnected players — so the group knows why someone's gone quiet
+          instead of assuming the app is broken */}
+      {disconnectedPlayers.length > 0 && (
+        <div className="disconnected-players-notice">
+          {t('disconnectedPlayersNotice', disconnectedPlayers.map(p => p.name).join(', '))}
+        </div>
+      )}
 
       {/* Role badge — when disguised the badge itself is tappable to reveal */}
       <div

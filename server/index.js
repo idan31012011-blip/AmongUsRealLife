@@ -8,6 +8,16 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' },
+  // Tolerate flaky mobile networks: default pingTimeout (20s) is too eager to
+  // declare a socket dead when a phone's radio briefly drops signal.
+  pingTimeout: 30000,
+  pingInterval: 25000,
+  // Lets a socket that reconnects with the same id (e.g. after a brief mobile
+  // background/suspend) pick back up in its previous rooms automatically.
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000,
+    skipMiddlewares: true,
+  },
 });
 
 // Serve the built client from client/dist

@@ -285,6 +285,8 @@ export const translations = {
     continueGameLabel: 'Interrupted session detected',
     continueGameBtn: 'Continue Game',
     continueGameDismiss: 'Dismiss',
+    playerDisconnectedBadge: 'offline',
+    disconnectedPlayersNotice: (names) => `📡 Reconnecting: ${names}`,
 
     // Manager transfer (lobby)
     makeHostBtn: '👑',
@@ -603,6 +605,8 @@ export const translations = {
     continueGameLabel: 'זוהתה הפסקה במשחק',
     continueGameBtn: 'המשך משחק',
     continueGameDismiss: 'בטל',
+    playerDisconnectedBadge: 'לא מחובר',
+    disconnectedPlayersNotice: (names) => `📡 מתחבר מחדש: ${names}`,
   },
 };
 
