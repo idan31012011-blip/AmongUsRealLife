@@ -18,6 +18,8 @@ const DEFAULTS_SEC = {
   maxCriticalCountdowns: 1,
   fileReadingTimerDuration: 90,
   fileReadingPenaltyCooldown: 30,
+  taskLockdownCooldown: 30,
+  maxTaskLockdowns: 1,
 };
 
 function toSec(ms) { return Math.round(ms / 1000); }
@@ -92,11 +94,16 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
     stationsEnabled: settings.stationsEnabled ?? false,
     stationMiniGames: settings.stationMiniGames ?? ['simon', 'stopbar', 'wireconnect'],
     doctorEnabled: settings.doctorEnabled ?? false,
+    engineerEnabled: settings.engineerEnabled ?? false,
     criticalCountdownEnabled: settings.criticalCountdownEnabled ?? false,
     criticalCountdownDuration: toSec(settings.criticalCountdownDuration ?? 40000),
     criticalCountdownCooldown: toSec(settings.criticalCountdownCooldown ?? 30000),
     maxCriticalCountdowns: settings.maxCriticalCountdowns ?? 1,
     criticalCountdownStation: settings.criticalCountdownStation ?? null,
+    taskLockdownEnabled: settings.taskLockdownEnabled ?? false,
+    taskLockdownCooldown: toSec(settings.taskLockdownCooldown ?? 30000),
+    maxTaskLockdowns: settings.maxTaskLockdowns ?? 1,
+    taskLockdownStation: settings.taskLockdownStation ?? null,
     fileReadingEnabled: settings.fileReadingEnabled ?? false,
     fileReadingTimerDuration: toSec(settings.fileReadingTimerDuration ?? 90000),
     fileReadingPenaltyCooldown: toSec(settings.fileReadingPenaltyCooldown ?? 30000),
@@ -196,11 +203,16 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
         stationsEnabled: local.stationsEnabled,
         stationMiniGames: local.stationMiniGames,
         doctorEnabled: local.doctorEnabled,
+        engineerEnabled: local.engineerEnabled,
         criticalCountdownEnabled: local.criticalCountdownEnabled,
         criticalCountdownDuration: toMs(local.criticalCountdownDuration),
         criticalCountdownCooldown: toMs(local.criticalCountdownCooldown),
         maxCriticalCountdowns: parseInt(local.maxCriticalCountdowns, 10),
         criticalCountdownStation: local.criticalCountdownStation || null,
+        taskLockdownEnabled: local.taskLockdownEnabled,
+        taskLockdownCooldown: toMs(local.taskLockdownCooldown),
+        maxTaskLockdowns: parseInt(local.maxTaskLockdowns, 10),
+        taskLockdownStation: local.taskLockdownStation || null,
         fileReadingEnabled: local.fileReadingEnabled,
         fileReadingTimerDuration: toMs(local.fileReadingTimerDuration),
         fileReadingPenaltyCooldown: toMs(local.fileReadingPenaltyCooldown),
@@ -337,6 +349,65 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
                               className="settings-input"
                               value={local.criticalCountdownStation || ''}
                               onChange={e => set('criticalCountdownStation', e.target.value || null)}
+                              style={{ fontSize: 13 }}
+                            >
+                              <option value="">{t('criticalCountdownStationSelect')}</option>
+                              {assignedStations.map(s => (
+                                <option key={s.roomName} value={s.roomName}>{s.roomName}</option>
+                              ))}
+                            </select>
+                          )}
+                        </SettingsRow>
+                      )}
+                    </>
+                  )}
+                </>
+              );
+            })()}
+
+            <div className="settings-subsection-title">{t('settingsTaskLockdown')}</div>
+
+            {(() => {
+              const assignedStations = stationAssignments ?? [];
+              const hasStations = local.stationsEnabled && assignedStations.length > 0;
+              const multiStation = assignedStations.length >= 2;
+              const canEnable = hasStations && local.engineerEnabled;
+              return (
+                <>
+                  <SettingsRow
+                    label={t('taskLockdownEnabledLabel')}
+                    defaultLabel={t('defaultPrefix', t('defaultOff'))}
+                  >
+                    <Toggle
+                      checked={local.taskLockdownEnabled}
+                      onChange={v => set('taskLockdownEnabled', v)}
+                      disabled={ro || !canEnable}
+                    />
+                  </SettingsRow>
+                  {!ro && !canEnable && (
+                    <p className="settings-sublabel" style={{ marginTop: 4, textAlign: 'right', color: 'var(--color-text-dim)' }}>
+                      {t('taskLockdownRequires')}
+                    </p>
+                  )}
+                  {local.taskLockdownEnabled && canEnable && (
+                    <>
+                      <SettingsRow label={t('taskLockdownCooldownLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.taskLockdownCooldown}s`)}>
+                        <NumInput value={local.taskLockdownCooldown} onChange={v => set('taskLockdownCooldown', v)}
+                          min={5} max={300} disabled={ro} />
+                      </SettingsRow>
+                      <SettingsRow label={t('maxTaskLockdownsLabel')} defaultLabel={t('defaultPrefix', String(DEFAULTS_SEC.maxTaskLockdowns))}>
+                        <NumInput value={local.maxTaskLockdowns} onChange={v => set('maxTaskLockdowns', v)}
+                          min={1} max={5} unit="" disabled={ro} />
+                      </SettingsRow>
+                      {multiStation && (
+                        <SettingsRow label={t('taskLockdownStationLabel')} defaultLabel="">
+                          {ro ? (
+                            <span className="settings-value">{local.taskLockdownStation || t('criticalCountdownStationAuto')}</span>
+                          ) : (
+                            <select
+                              className="settings-input"
+                              value={local.taskLockdownStation || ''}
+                              onChange={e => set('taskLockdownStation', e.target.value || null)}
                               style={{ fontSize: 13 }}
                             >
                               <option value="">{t('criticalCountdownStationSelect')}</option>
@@ -501,6 +572,13 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
 
         <SettingsRow label={t('doctorEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOff'))}>
           <Toggle checked={local.doctorEnabled} onChange={v => set('doctorEnabled', v)} disabled={ro} />
+        </SettingsRow>
+
+        {/* ── Engineer ────────────────────────────────────────────────── */}
+        <div className="settings-section-title" style={{ marginTop: 20 }}>{t('settingsEngineer')}</div>
+
+        <SettingsRow label={t('engineerEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOff'))}>
+          <Toggle checked={local.engineerEnabled} onChange={v => set('engineerEnabled', v)} disabled={ro} />
         </SettingsRow>
 
         {/* ── File Reading ────────────────────────────────────────────── */}

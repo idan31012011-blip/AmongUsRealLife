@@ -210,6 +210,9 @@ function registerHandlers(io, socket) {
     // Doctor
     if (typeof settings.doctorEnabled === 'boolean') validated.doctorEnabled = settings.doctorEnabled;
 
+    // Engineer
+    if (typeof settings.engineerEnabled === 'boolean') validated.engineerEnabled = settings.engineerEnabled;
+
     // Sabotage booleans
     if (typeof settings.sabotageEnabled === 'boolean') validated.sabotageEnabled = settings.sabotageEnabled;
     if (typeof settings.roomLockingEnabled === 'boolean') validated.roomLockingEnabled = settings.roomLockingEnabled;
@@ -250,6 +253,19 @@ function registerHandlers(io, socket) {
       validated.criticalCountdownStation = settings.criticalCountdownStation || null;
     }
 
+    // Task Lockdown
+    if (typeof settings.taskLockdownEnabled === 'boolean') validated.taskLockdownEnabled = settings.taskLockdownEnabled;
+
+    const tlc = clampInt(settings.taskLockdownCooldown, 5000, 300000);
+    if (tlc !== null) validated.taskLockdownCooldown = tlc;
+
+    const mtl = clampInt(settings.maxTaskLockdowns, 1, 5);
+    if (mtl !== null) validated.maxTaskLockdowns = mtl;
+
+    if (typeof settings.taskLockdownStation === 'string' || settings.taskLockdownStation === null) {
+      validated.taskLockdownStation = settings.taskLockdownStation || null;
+    }
+
     if (Array.isArray(settings.stationMiniGames)) {
       const valid = settings.stationMiniGames.filter(g => ['simon', 'stopbar', 'wireconnect'].includes(g));
       if (valid.length > 0) validated.stationMiniGames = valid;
@@ -274,6 +290,11 @@ function registerHandlers(io, socket) {
     // Keep criticalCountdownUsesLeft in sync with maxCriticalCountdowns
     if (validated.maxCriticalCountdowns !== undefined) {
       game.sabotage.criticalCountdownUsesLeft = validated.maxCriticalCountdowns;
+    }
+
+    // Keep taskLockdownUsesLeft in sync with maxTaskLockdowns
+    if (validated.maxTaskLockdowns !== undefined) {
+      game.sabotage.taskLockdownUsesLeft = validated.maxTaskLockdowns;
     }
 
     io.to(code).emit('settings_updated', { settings: game.settings });
@@ -400,6 +421,15 @@ function registerHandlers(io, socket) {
       }
     }
 
+    // Assign engineer sub-role — mutually exclusive with doctor
+    game.engineerId = null;
+    if (game.settings.engineerEnabled) {
+      const eligible = [...game.players.values()].filter(p => p.role !== 'station' && p.id !== game.doctorId);
+      if (eligible.length > 0) {
+        game.engineerId = eligible[Math.floor(Math.random() * eligible.length)].id;
+      }
+    }
+
     io.to(code).emit('game_started', { players: buildPublicPlayerList(game.players) });
 
     // Send each player their role and tasks privately
@@ -423,6 +453,11 @@ function registerHandlers(io, socket) {
     // Notify doctor privately
     if (game.doctorId) {
       io.to(game.doctorId).emit('doctor_assigned');
+    }
+
+    // Notify engineer privately
+    if (game.engineerId) {
+      io.to(game.engineerId).emit('engineer_assigned');
     }
 
     // Give the imposter their initial sabotage state so use counts reflect actual settings
@@ -537,6 +572,11 @@ function registerHandlers(io, socket) {
     // Block new task starts when the room is locked or global lockdown is active
     if (game.sabotage.lockedRooms.has(stationRoom) || game.sabotage.globalLockdownActive) {
       return socket.emit('station_code_result', { valid: false, reason: 'room_locked' });
+    }
+    // Task Lockdown blocks all normal station task attempts — the pinned station's
+    // own fix flow uses a separate dedicated event, not this one
+    if (game.sabotage.taskLockdownActive) {
+      return socket.emit('station_code_result', { valid: false, reason: 'task_lockdown' });
     }
 
     // Find which player owns this code
@@ -902,6 +942,72 @@ function registerHandlers(io, socket) {
     endCriticalCountdown(io, game);
   });
 
+  socket.on('trigger_task_lockdown', ({ code } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return socket.emit('error', { message: 'Cannot sabotage now.' });
+
+    const imposter = game.players.get(socket.id);
+    if (!imposter || imposter.role !== 'imposter' || !imposter.isAlive) {
+      return socket.emit('error', { message: 'Not allowed.' });
+    }
+    if (!game.settings.sabotageEnabled) return socket.emit('error', { message: 'Sabotage is disabled.' });
+    if (!game.settings.taskLockdownEnabled) return socket.emit('error', { message: 'Task Lockdown is disabled.' });
+    if (!game.engineerId) return socket.emit('error', { message: 'No Engineer assigned.' });
+    if (game.sabotage.taskLockdownActive) return socket.emit('error', { message: 'Task Lockdown already active.' });
+    if (Date.now() < game.sabotage.taskLockdownCooldownUntil) {
+      return socket.emit('error', { message: 'Task Lockdown on cooldown.' });
+    }
+    if (game.sabotage.taskLockdownUsesLeft <= 0) {
+      return socket.emit('error', { message: 'No Task Lockdown uses remaining.' });
+    }
+
+    const stationId = getTaskLockdownStationId(game);
+    if (!stationId) return socket.emit('error', { message: 'No station available for Task Lockdown.' });
+    const stationRoom = game.stationRooms.get(stationId);
+
+    game.sabotage.taskLockdownActive = true;
+    game.sabotage.taskLockdownStationRoom = stationRoom;
+    game.sabotage.taskLockdownUsesLeft -= 1;
+
+    // Broadcast to everyone that tasks are disabled — no Engineer name lobby-wide
+    io.to(code).emit('task_lockdown_started', { stationRoom });
+
+    // Tell only the pinned station device who needs to fix it
+    const engineer = game.players.get(game.engineerId);
+    io.to(stationId).emit('task_lockdown_station_info', { engineerName: engineer?.name ?? '?' });
+
+    socket.emit('sabotage_status', buildSabotageStatus(game));
+  });
+
+  socket.on('task_lockdown_validate_code', ({ code, enteredCode } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return;
+    if (!game.stations.has(socket.id)) return;
+    if (!game.sabotage.taskLockdownActive) return;
+
+    const stationId = getTaskLockdownStationId(game);
+    if (stationId !== socket.id) return;
+
+    const engineerCode = game.playerCodes.get(game.engineerId);
+    if (!engineerCode || String(enteredCode) !== String(engineerCode)) {
+      return socket.emit('task_lockdown_code_result', { valid: false });
+    }
+
+    socket.emit('task_lockdown_code_result', { valid: true });
+  });
+
+  socket.on('task_lockdown_fix_complete', ({ code } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return;
+    if (!game.stations.has(socket.id)) return;
+    if (!game.sabotage.taskLockdownActive) return;
+
+    const stationId = getTaskLockdownStationId(game);
+    if (stationId !== socket.id) return;
+
+    endTaskLockdown(io, game);
+  });
+
   // ─── MEETINGS ─────────────────────────────────────────────────────────────
 
   socket.on('report_body', ({ code, bodyId } = {}) => {
@@ -1138,6 +1244,7 @@ function registerHandlers(io, socket) {
     // Stations are intentionally preserved across games
     game.playerCodes = new Map();
     game.doctorId = null;
+    game.engineerId = null;
     game.bodyReportWindow = null;
     game.sabotage = {
       lockedRooms: new Map(),
@@ -1153,6 +1260,10 @@ function registerHandlers(io, socket) {
       criticalCountdownUsesLeft: game.settings.maxCriticalCountdowns,
       criticalCountdownCode: null,
       criticalCountdownTimeoutId: null,
+      taskLockdownActive: false,
+      taskLockdownStationRoom: null,
+      taskLockdownCooldownUntil: 0,
+      taskLockdownUsesLeft: game.settings.maxTaskLockdowns,
     };
 
     for (const player of game.players.values()) {
@@ -1330,6 +1441,12 @@ function buildSabotageStatus(game) {
       cooldownUntil: game.sabotage.criticalCountdownCooldownUntil,
       usesLeft: game.sabotage.criticalCountdownUsesLeft,
     },
+    taskLockdown: {
+      active: game.sabotage.taskLockdownActive,
+      stationRoom: game.sabotage.taskLockdownStationRoom,
+      cooldownUntil: game.sabotage.taskLockdownCooldownUntil,
+      usesLeft: game.sabotage.taskLockdownUsesLeft,
+    },
   };
 }
 
@@ -1347,6 +1464,30 @@ function getCriticalCountdownStationId(game) {
     }
   }
   return stationIds[0];
+}
+
+function getTaskLockdownStationId(game) {
+  const stationIds = [...game.stationRooms.keys()];
+  if (stationIds.length === 0) return null;
+  if (stationIds.length === 1) return stationIds[0];
+  if (game.settings.taskLockdownStation) {
+    for (const [id, room] of game.stationRooms) {
+      if (room === game.settings.taskLockdownStation) return id;
+    }
+  }
+  return stationIds[0];
+}
+
+function endTaskLockdown(io, game) {
+  if (!game.sabotage.taskLockdownActive) return;
+  game.sabotage.taskLockdownActive = false;
+  game.sabotage.taskLockdownStationRoom = null;
+  game.sabotage.taskLockdownCooldownUntil = Date.now() + game.settings.taskLockdownCooldown;
+
+  const imposter = [...game.players.values()].find(p => p.role === 'imposter');
+  if (imposter) io.to(imposter.id).emit('sabotage_status', buildSabotageStatus(game));
+
+  io.to(game.code).emit('task_lockdown_fixed');
 }
 
 function endCriticalCountdown(io, game) {
@@ -1484,6 +1625,14 @@ function performRejoin(io, socket, code, trimmedName) {
         });
       }
     }
+    // Resend task lockdown fix info if this is still the pinned station
+    if (game.sabotage.taskLockdownActive) {
+      const stationId = getTaskLockdownStationId(game);
+      if (stationId === socket.id) {
+        const engineer = game.players.get(game.engineerId);
+        socket.emit('task_lockdown_station_info', { engineerName: engineer?.name ?? '?' });
+      }
+    }
   } else {
     const sabotageForPlayer = player.role === 'imposter'
       ? buildSabotageStatus(game)
@@ -1497,6 +1646,10 @@ function performRejoin(io, socket, code, trimmedName) {
             active: game.sabotage.criticalCountdownActive,
             expiresAt: game.sabotage.criticalCountdownExpiresAt,
           },
+          taskLockdown: {
+            active: game.sabotage.taskLockdownActive,
+            stationRoom: game.sabotage.taskLockdownStationRoom,
+          },
         };
 
     socket.emit('game_state_restored', {
@@ -1509,6 +1662,7 @@ function performRejoin(io, socket, code, trimmedName) {
       myCode: game.playerCodes.get(socket.id),
       sabotage: sabotageForPlayer,
       isDoctor: game.doctorId === socket.id,
+      isEngineer: game.engineerId === socket.id,
       canUndoSelfKill: !!player.selfReported,
       myVote: game.phase === 'voting' ? (game.votes.get(socket.id) ?? null) : null,
       totalVotesIn: game.phase === 'voting' ? game.votes.size : 0,
@@ -1536,6 +1690,7 @@ function migratePlayerId(game, oldId, newId) {
   }
 
   if (game.doctorId === oldId) game.doctorId = newId;
+  if (game.engineerId === oldId) game.engineerId = newId;
 
   if (game.easyModePlayers.has(oldId)) {
     game.easyModePlayers.delete(oldId);
@@ -1564,6 +1719,8 @@ function migratePlayerId(game, oldId, newId) {
 }
 
 function canDoTask(player, game) {
+  // Task Lockdown sabotage blocks all tasks until the Engineer fixes it
+  if (game.sabotage.taskLockdownActive) return false;
   if (player.isAlive) return true;
   // Dead crewmate can do tasks only if body found or meeting has occurred
   return player.bodyFound || game.meetingHasOccurred;

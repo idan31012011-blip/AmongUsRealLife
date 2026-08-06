@@ -41,6 +41,16 @@ export default function StationScreen() {
   const criticalCountdownActive = state.sabotage?.criticalCountdownActive ?? false;
   const criticalCountdownStationRoom = state.sabotage?.criticalCountdownStationRoom ?? null;
 
+  // Task lockdown fix state (only populated on the pinned station)
+  const [engineerFixInfo, setEngineerFixInfo] = useState(null); // { engineerName }
+  const [tlEntered, setTlEntered] = useState('');
+  const [tlError, setTlError] = useState(null);
+  const [tlValidated, setTlValidated] = useState(false);
+  const [tlSubmitting, setTlSubmitting] = useState(false);
+
+  const taskLockdownActive = state.sabotage?.taskLockdownActive ?? false;
+  const taskLockdownStationRoom = state.sabotage?.taskLockdownStationRoom ?? null;
+
   const isRoomLocked = (state.sabotage?.lockedRooms ?? []).some(r => r.roomName === stationRoom)
     || (state.sabotage?.globalLockdownActive ?? false);
 
@@ -101,17 +111,50 @@ export default function StationScreen() {
       setCcEntered('');
     }
 
+    function onTaskLockdownStationInfo({ engineerName }) {
+      setEngineerFixInfo({ engineerName });
+      setTlEntered('');
+      setTlError(null);
+      setTlValidated(false);
+      setTlSubmitting(false);
+    }
+
+    function onTaskLockdownCodeResult({ valid }) {
+      setTlSubmitting(false);
+      if (valid) {
+        setTlValidated(true);
+        setTlError(null);
+      } else {
+        setTlError(t('taskLockdownWrongCode'));
+        setTlEntered('');
+      }
+    }
+
+    function onTaskLockdownFixed() {
+      setEngineerFixInfo(null);
+      setTlEntered('');
+      setTlError(null);
+      setTlValidated(false);
+      setTlSubmitting(false);
+    }
+
     socket.on('station_code_result', onCodeResult);
     socket.on('station_success', onSuccess);
     socket.on('critical_countdown_code', onCriticalCode);
     socket.on('critical_countdown_success', onCriticalSuccess);
     socket.on('critical_countdown_wrong_code', onCriticalWrongCode);
+    socket.on('task_lockdown_station_info', onTaskLockdownStationInfo);
+    socket.on('task_lockdown_code_result', onTaskLockdownCodeResult);
+    socket.on('task_lockdown_fixed', onTaskLockdownFixed);
     return () => {
       socket.off('station_code_result', onCodeResult);
       socket.off('station_success', onSuccess);
       socket.off('critical_countdown_code', onCriticalCode);
       socket.off('critical_countdown_success', onCriticalSuccess);
       socket.off('critical_countdown_wrong_code', onCriticalWrongCode);
+      socket.off('task_lockdown_station_info', onTaskLockdownStationInfo);
+      socket.off('task_lockdown_code_result', onTaskLockdownCodeResult);
+      socket.off('task_lockdown_fixed', onTaskLockdownFixed);
     };
   }, [t, abortCooldowns]);
 
@@ -128,6 +171,25 @@ export default function StationScreen() {
     setCcSubmitting(true);
     setCcError(null);
     socket.emit('critical_countdown_submit', { code: gameCode, enteredCode: ccEntered });
+  }
+
+  function pressTlDigit(digit) {
+    if (tlEntered.length < 3) setTlEntered(c => c + digit);
+  }
+
+  function pressTlDelete() {
+    setTlEntered(c => c.slice(0, -1));
+  }
+
+  function submitTlCode() {
+    if (tlEntered.length !== 3 || tlSubmitting) return;
+    setTlSubmitting(true);
+    setTlError(null);
+    socket.emit('task_lockdown_validate_code', { code: gameCode, enteredCode: tlEntered });
+  }
+
+  function handleTaskLockdownFixSuccess() {
+    socket.emit('task_lockdown_fix_complete', { code: gameCode });
   }
 
   function pressDigit(digit) {
@@ -160,6 +222,60 @@ export default function StationScreen() {
 
   function callMeeting() {
     socket.emit('station_call_meeting', { code: gameCode });
+  }
+
+  // Task Lockdown active — this station is either the pinned fix station or just alerted
+  if (taskLockdownActive) {
+    if (engineerFixInfo) {
+      return (
+        <div className="screen station-screen tl-station-screen">
+          <div className="tl-station-title">{t('taskLockdownStationTitle')}</div>
+          {!tlValidated ? (
+            <div className="tl-station-entry-section">
+              <p className="tl-station-prompt">{t('taskLockdownNeedsEngineer', engineerFixInfo.engineerName)}</p>
+              <div className="station-code-display" dir="ltr">
+                {tlEntered.padEnd(3, '_').split('').map((ch, i) => (
+                  <span key={i} className={`station-code-digit ${ch !== '_' ? 'filled' : ''}`}>{ch}</span>
+                ))}
+              </div>
+              {tlError && <div className="station-error">{tlError}</div>}
+              <div className="station-keypad">
+                {[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map((k, i) => (
+                  <button
+                    key={i}
+                    className={`station-key${k === '' ? ' station-key-empty' : ''}`}
+                    onClick={() => {
+                      if (k === '⌫') pressTlDelete();
+                      else if (k !== '') pressTlDigit(String(k));
+                    }}
+                    disabled={k === '' || tlSubmitting}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
+              <button
+                className="btn btn-blue btn-large station-submit"
+                onClick={submitTlCode}
+                disabled={tlEntered.length !== 3 || tlSubmitting}
+              >
+                {t('stationSubmitCode')}
+              </button>
+            </div>
+          ) : (
+            <WireConnectGame playerName={engineerFixInfo.engineerName} onSuccess={handleTaskLockdownFixSuccess} hard />
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className="screen station-screen tl-station-screen">
+        <div className="tl-station-title">{t('taskLockdownStationTitle')}</div>
+        <div className="cc-station-alert">
+          {t('taskLockdownStationAlert', taskLockdownStationRoom ?? '?')}
+        </div>
+      </div>
+    );
   }
 
   // If this is the designated station during critical countdown, show code entry

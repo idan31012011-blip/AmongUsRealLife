@@ -2,13 +2,16 @@ import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 
 const COLORS = ['red', 'blue', 'green', 'yellow'];
-const COLOR_STROKE = { red: '#e8294a', blue: '#1a7fe0', green: '#1db954', yellow: '#f0c030' };
+const HARD_COLORS = ['red', 'blue', 'green', 'yellow', 'orange', 'purple'];
+const COLOR_STROKE = {
+  red: '#e8294a', blue: '#1a7fe0', green: '#1db954', yellow: '#f0c030',
+  orange: '#e08a1a', purple: '#9b4de0',
+};
 
 const PEG_D  = 56;
 const V_GAP  = 16;
 const STRIDE = PEG_D + V_GAP;          // 72
 const BOARD_W = 280;
-const BOARD_H = COLORS.length * PEG_D + (COLORS.length - 1) * V_GAP; // 272
 
 const pegCY = (i) => i * STRIDE + PEG_D / 2;
 
@@ -21,9 +24,11 @@ function shuffle(arr) {
   return a;
 }
 
-export default function WireConnectGame({ playerName, onSuccess }) {
+export default function WireConnectGame({ playerName, onSuccess, hard = false }) {
   const { t } = useLanguage();
-  const [rightOrder] = useState(() => shuffle(COLORS));
+  const activeColors = hard ? HARD_COLORS : COLORS;
+  const BOARD_H = activeColors.length * PEG_D + (activeColors.length - 1) * V_GAP;
+  const [rightOrder] = useState(() => shuffle(activeColors));
   const [connections, setConnections] = useState({});  // leftColor → rightColor (always same)
   const [selected, setSelected] = useState(null);
   const [wrongAnim, setWrongAnim] = useState(null);
@@ -41,7 +46,7 @@ export default function WireConnectGame({ playerName, onSuccess }) {
       const next = { ...connections, [selected]: color };
       setConnections(next);
       setSelected(null);
-      if (Object.keys(next).length === COLORS.length) setTimeout(onSuccess, 600);
+      if (Object.keys(next).length === activeColors.length) setTimeout(onSuccess, 600);
     } else {
       setWrongAnim(selected);
       setTimeout(() => setWrongAnim(null), 350);
@@ -56,7 +61,7 @@ export default function WireConnectGame({ playerName, onSuccess }) {
       <div className="wire-board" style={{ width: BOARD_W, height: BOARD_H }}>
 
         {/* Left pegs */}
-        {COLORS.map((color, i) => (
+        {activeColors.map((color, i) => (
           <button
             key={`L-${color}`}
             className={`wire-peg wire-peg-${color}${selected === color ? ' wire-selected' : ''}${connections[color] ? ' wire-done' : ''}${wrongAnim === color ? ' wire-wrong' : ''}`}
@@ -73,7 +78,7 @@ export default function WireConnectGame({ playerName, onSuccess }) {
           height={BOARD_H}
         >
           {Object.keys(connections).map(color => {
-            const leftIdx  = COLORS.indexOf(color);
+            const leftIdx  = activeColors.indexOf(color);
             const rightIdx = rightOrder.indexOf(color);
             return (
               <line

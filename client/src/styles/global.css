@@ -2411,6 +2411,42 @@ input {
   margin-top: 2px;
 }
 
+/* Engineer reveal badge reuses the doctor badge shape with an amber tint */
+.engineer-reveal-badge {
+  background: rgba(230, 150, 20, 0.15);
+  border-color: rgba(255, 180, 40, 0.35);
+}
+
+.engineer-reveal-badge .doctor-reveal-title {
+  color: #ffb428;
+}
+
+/* Task-blocked message (GameScreen task area during Task Lockdown) */
+.task-lockdown-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--space-md);
+  padding: var(--space-xl);
+}
+
+.task-lockdown-icon {
+  font-size: 64px;
+}
+
+.task-lockdown-block h2 {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.task-lockdown-block p {
+  color: var(--color-text-dim);
+  line-height: 1.6;
+}
+
 .motion-permission-btn {
   margin-top: var(--space-sm);
 }
@@ -2926,6 +2962,8 @@ input {
 .wire-peg-blue   { background: #1a7fe0; }
 .wire-peg-green  { background: #1db954; }
 .wire-peg-yellow { background: #f0c030; }
+.wire-peg-orange { background: #e08a1a; }
+.wire-peg-purple { background: #9b4de0; }
 
 .wire-peg.wire-selected {
   border-color: #fff;
@@ -3144,6 +3182,41 @@ input {
   padding-top: calc(var(--safe-top) + 62px);
 }
 
+/* ── Task Lockdown Banner (GameScreen) — amber variant of the CC banner ── */
+.tl-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: calc(var(--safe-top) + 8px) 16px 8px;
+  background: rgba(180, 110, 0, 0.95);
+  pointer-events: none;
+}
+
+.tl-overlay-title {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(255, 180, 60, 1);
+}
+
+.tl-overlay-subtitle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.game-screen.tl-active .game-topbar {
+  padding-top: calc(var(--safe-top) + 44px);
+}
+
 /* ── Critical Countdown Station Screen ──────────────────────────────────── */
 .cc-station-screen {
   background: #1a0000 !important;
@@ -3228,6 +3301,38 @@ input {
   line-height: 1.5;
   white-space: pre-line;
   padding: var(--space-md);
+}
+
+/* ── Task Lockdown Station Screen — amber variant of the CC station screen ── */
+.tl-station-screen {
+  background: #1a1200 !important;
+  gap: var(--space-md) !important;
+}
+
+.tl-station-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #ffb428;
+  text-align: center;
+  padding-top: var(--space-md);
+  text-shadow: 0 0 16px rgba(255, 180, 40, 0.6);
+}
+
+.tl-station-entry-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 320px;
+}
+
+.tl-station-prompt {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  text-align: center;
+  padding: 0 var(--space-md);
 }
 
 /* ── File Reading Task ─────────────────────────────────────────────────────── */

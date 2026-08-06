@@ -163,6 +163,27 @@ export const translations = {
     criticalCountdownStationAuto: 'Auto (only station)',
     criticalCountdownStationSelect: 'Select station room…',
 
+    // Task Lockdown
+    taskLockdownSection: 'Task Lockdown',
+    taskLockdownBtn: '🔧 Trigger Task Lockdown',
+    taskLockdownActiveBadge: '🔧 ACTIVE',
+    taskLockdownOverlayTitle: '🔧 TASK LOCKDOWN',
+    taskLockdownOverlaySubtitle: (room) => `Tasks are disabled — the Engineer must fix it at the ${room} station!`,
+    taskLockdownImposterSubtitle: 'Tasks are disabled until the Engineer fixes it.',
+    taskLockdownBlockedTitle: 'Tasks Disabled',
+    taskLockdownCrewSub: (room) => `Sabotage! Tasks are disabled until the Engineer fixes it at the ${room} station.`,
+    taskLockdownEngineerSub: (room) => `Go to the ${room} station and enter your code to fix it.`,
+    taskLockdownStationTitle: 'Task Lockdown',
+    taskLockdownStationAlert: (room) => `Task Lockdown!\nThe Engineer must fix it at the ${room} station.`,
+    taskLockdownNeedsEngineer: (name) => `This station needs ${name} (the Engineer) to fix it. Enter your code:`,
+    taskLockdownWrongCode: 'Wrong code — try again!',
+    settingsTaskLockdown: 'Task Lockdown',
+    taskLockdownEnabledLabel: 'Task Lockdown enabled',
+    taskLockdownRequires: 'Requires stations and the Engineer sub-role',
+    taskLockdownCooldownLabel: 'Cooldown between uses',
+    maxTaskLockdownsLabel: 'Max uses per game',
+    taskLockdownStationLabel: 'Designated station (auto if only one)',
+
     // Game end reasons
     reasonCriticalCountdownExpired: 'The crew failed to enter the code in time!',
     reasonImposterDisconnected: 'The Imposter disconnected!',
@@ -263,6 +284,12 @@ export const translations = {
     monitorDead: 'Flatline',
     monitorYou: '(you)',
     enableMotionBtn: 'Enable Motion Sensors',
+
+    // Engineer
+    settingsEngineer: 'Engineer',
+    engineerEnabledLabel: 'Enable Engineer sub-role',
+    engineerNotification: 'You are also the Engineer',
+    engineerNotificationDesc: 'Only you can fix a Task Lockdown sabotage.',
 
     // File Reading task
     settingsFileReading: 'File Reading Task',
@@ -465,6 +492,28 @@ export const translations = {
     criticalCountdownStationLabel: 'עמדה ייעודית (אוטומטי אם יש רק אחת)',
     criticalCountdownStationAuto: 'אוטומטי (עמדה יחידה)',
     criticalCountdownStationSelect: 'בחר חדר עמדה…',
+
+    // Task Lockdown
+    taskLockdownSection: 'השבתת משימות',
+    taskLockdownBtn: '🔧 הפעל השבתת משימות',
+    taskLockdownActiveBadge: '🔧 פעיל',
+    taskLockdownOverlayTitle: '🔧 השבתת משימות',
+    taskLockdownOverlaySubtitle: (room) => `המשימות מושבתות — המהנדס חייב לתקן בעמדת ${room}!`,
+    taskLockdownImposterSubtitle: 'המשימות מושבתות עד שהמהנדס יתקן את התקלה.',
+    taskLockdownBlockedTitle: 'משימות מושבתות',
+    taskLockdownCrewSub: (room) => `חבלה! המשימות מושבתות עד שהמהנדס יתקן בעמדת ${room}.`,
+    taskLockdownEngineerSub: (room) => `לך לעמדת ${room} והכנס את הקוד שלך כדי לתקן.`,
+    taskLockdownStationTitle: 'השבתת משימות',
+    taskLockdownStationAlert: (room) => `השבתת משימות!\nהמהנדס חייב לתקן בעמדת ${room}.`,
+    taskLockdownNeedsEngineer: (name) => `עמדה זו זקוקה ל-${name} (המהנדס) כדי לתקן. הכנס את הקוד שלך:`,
+    taskLockdownWrongCode: 'קוד שגוי — נסה שנית!',
+    settingsTaskLockdown: 'השבתת משימות',
+    taskLockdownEnabledLabel: 'השבתת משימות פעילה',
+    taskLockdownRequires: 'דורש עמדות ותפקיד משנה: מהנדס',
+    taskLockdownCooldownLabel: 'זמן קירור בין שימושים',
+    maxTaskLockdownsLabel: 'מקס. שימושים למשחק',
+    taskLockdownStationLabel: 'עמדה ייעודית (אוטומטי אם יש רק אחת)',
+
     reasonCriticalCountdownExpired: 'הצוות לא הכניס את הקוד בזמן!',
     reasonImposterDisconnected: 'האימפוסטר התנתק!',
     reasonImposterKicked: 'האימפוסטר הוסר על ידי המארח!',
@@ -564,6 +613,12 @@ export const translations = {
     monitorDead: 'קו שטוח',
     monitorYou: '(אני)',
     enableMotionBtn: 'אפשר חיישני תנועה',
+
+    // Engineer
+    settingsEngineer: 'מהנדס',
+    engineerEnabledLabel: 'הפעל תפקיד משנה: מהנדס',
+    engineerNotification: 'אתה גם המהנדס',
+    engineerNotificationDesc: 'רק אתה יכול לתקן חבלת השבתת משימות.',
 
     // File Reading task
     settingsFileReading: 'משימת קריאת קבצים',

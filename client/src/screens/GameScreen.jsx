@@ -71,7 +71,7 @@ export default function GameScreen() {
   const { t } = useLanguage();
   const {
     myRole, isAlive, players, gameCode, taskProgressPercent, myId, isManager,
-    settings, sabotage, pendingLockNotification, pendingStationNotice, rooms, isDoctor,
+    settings, sabotage, pendingLockNotification, pendingStationNotice, rooms, isDoctor, isEngineer,
     reportBodyWindowEnd, canUndoSelfKill,
   } = state;
 
@@ -146,7 +146,7 @@ export default function GameScreen() {
   const reportWindowActive = stationsMode && reportBodyWindowEnd != null && Date.now() < reportBodyWindowEnd && !criticalCountdownActive;
 
   return (
-    <div className={`screen game-screen ${isDead ? 'dead-screen' : ''} ${criticalCountdownActive ? 'cc-active' : ''}`}>
+    <div className={`screen game-screen ${isDead ? 'dead-screen' : ''} ${criticalCountdownActive ? 'cc-active' : ''} ${sabotage.taskLockdownActive ? 'tl-active' : ''}`}>
       {/* Top bar */}
       <div className="game-topbar">
         <TaskProgressBar percent={taskProgressPercent} />
@@ -189,6 +189,16 @@ export default function GameScreen() {
               {t('undoSelfKillBtn')}
             </button>
           )}
+        </div>
+      ) : sabotage.taskLockdownActive ? (
+        <div className="task-lockdown-block">
+          <div className="task-lockdown-icon">⚙️</div>
+          <h2>{t('taskLockdownBlockedTitle')}</h2>
+          <p>
+            {isEngineer
+              ? t('taskLockdownEngineerSub', sabotage.taskLockdownStationRoom ?? '?')
+              : t('taskLockdownCrewSub', sabotage.taskLockdownStationRoom ?? '?')}
+          </p>
         </div>
       ) : (
         <div className="task-area">
@@ -411,6 +421,18 @@ export default function GameScreen() {
             {isImposter
               ? t('criticalCountdownImposterSubtitle')
               : t('criticalCountdownOverlaySubtitle', sabotage.criticalCountdownStationRoom ?? '?')}
+          </div>
+        </div>
+      )}
+
+      {/* Task Lockdown banner — shown to ALL players, non-blocking */}
+      {sabotage.taskLockdownActive && (
+        <div className="tl-overlay">
+          <div className="tl-overlay-title">{t('taskLockdownOverlayTitle')}</div>
+          <div className="tl-overlay-subtitle">
+            {isImposter
+              ? t('taskLockdownImposterSubtitle')
+              : t('taskLockdownOverlaySubtitle', sabotage.taskLockdownStationRoom ?? '?')}
           </div>
         </div>
       )}

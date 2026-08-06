@@ -29,6 +29,7 @@ function createGame({ managerId, rooms, settings }) {
     easyModePlayers: new Set(),        // Set<playerId> — players assigned easy mode
     pendingMiniGames: new Map(),      // Map<playerId, miniGame> — assigned but not yet completed
     doctorId: null,                   // playerId of the doctor (sub-role)
+    engineerId: null,                 // playerId of the engineer (sub-role)
     bodyReportWindow: null,           // { bodyId, expiresAt, imposterOnly, timeoutId } | null
     lobbyCleanupTimeout: null,        // setTimeout handle — deferred cleanup when lobby empties
     settings: {
@@ -47,11 +48,16 @@ function createGame({ managerId, rooms, settings }) {
       stationsEnabled:              settings?.stationsEnabled              ?? false,
       stationMiniGames:             settings?.stationMiniGames             ?? ['simon', 'stopbar', 'wireconnect'],
       doctorEnabled:                settings?.doctorEnabled                ?? false,
+      engineerEnabled:              settings?.engineerEnabled              ?? false,
       criticalCountdownEnabled:     settings?.criticalCountdownEnabled     ?? false,
       criticalCountdownDuration:    settings?.criticalCountdownDuration    ?? 40000,
       criticalCountdownCooldown:    settings?.criticalCountdownCooldown    ?? 30000,
       maxCriticalCountdowns:        settings?.maxCriticalCountdowns        ?? 1,
       criticalCountdownStation:     settings?.criticalCountdownStation     ?? null,
+      taskLockdownEnabled:          settings?.taskLockdownEnabled          ?? false,
+      taskLockdownCooldown:         settings?.taskLockdownCooldown         ?? 30000,
+      maxTaskLockdowns:             settings?.maxTaskLockdowns             ?? 1,
+      taskLockdownStation:          settings?.taskLockdownStation          ?? null,
       fileReadingEnabled:           settings?.fileReadingEnabled           ?? false,
       fileReadingTimerDuration:     settings?.fileReadingTimerDuration     ?? 90000,
       fileReadingPenaltyCooldown:   settings?.fileReadingPenaltyCooldown   ?? 30000,
@@ -70,6 +76,10 @@ function createGame({ managerId, rooms, settings }) {
       criticalCountdownUsesLeft: settings?.maxCriticalCountdowns ?? 1,
       criticalCountdownCode: null,
       criticalCountdownTimeoutId: null,
+      taskLockdownActive: false,
+      taskLockdownStationRoom: null,
+      taskLockdownCooldownUntil: 0,
+      taskLockdownUsesLeft: settings?.maxTaskLockdowns ?? 1,
     },
   };
 

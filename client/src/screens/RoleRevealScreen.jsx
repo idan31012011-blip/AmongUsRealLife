@@ -7,7 +7,7 @@ import { playRoleSuspense } from '../sounds';
 export default function RoleRevealScreen() {
   const { state } = useGame();
   const { t } = useLanguage();
-  const { myRole, gameCode, isDoctor, isManager } = state;
+  const { myRole, gameCode, isDoctor, isEngineer, isManager } = state;
   const [stage, setStage] = useState('suspense'); // 'suspense' | 'flipping' | 'revealed' | 'waiting'
   const [motionGranted, setMotionGranted] = useState(false);
   const needsMotionPrompt = typeof DeviceMotionEvent !== 'undefined' &&
@@ -71,6 +71,16 @@ export default function RoleRevealScreen() {
           <div>
             <div className="doctor-reveal-title">{t('doctorNotification')}</div>
             <div className="doctor-reveal-desc">{t('doctorNotificationDesc')}</div>
+          </div>
+        </div>
+      )}
+
+      {stage === 'revealed' && isEngineer && (
+        <div className="doctor-reveal-badge engineer-reveal-badge">
+          <span className="doctor-reveal-icon">🔧</span>
+          <div>
+            <div className="doctor-reveal-title">{t('engineerNotification')}</div>
+            <div className="doctor-reveal-desc">{t('engineerNotificationDesc')}</div>
           </div>
         </div>
       )}

@@ -82,6 +82,9 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
     criticalCountdownExpiresAt,
     criticalCountdownCooldownUntil,
     criticalCountdownUsesLeft,
+    taskLockdownActive,
+    taskLockdownCooldownUntil,
+    taskLockdownUsesLeft,
   } = sabotage;
 
   const [, tick] = useState(0);
@@ -100,6 +103,10 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
 
   function triggerCriticalCountdown() {
     socket.emit('trigger_critical_countdown', { code: gameCode });
+  }
+
+  function triggerTaskLockdown() {
+    socket.emit('trigger_task_lockdown', { code: gameCode });
   }
 
   return (
@@ -219,6 +226,39 @@ export default function SabotageMenu({ rooms, sabotage, settings, gameCode, onCl
             ) : (
               <button className="btn btn-red btn-large" onClick={triggerCriticalCountdown}>
                 {t('criticalCountdownBtn')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {settings.taskLockdownEnabled && (
+          <div className="sabotage-global-section">
+            <div className="settings-section-title" style={{ margin: 0, border: 'none' }}>
+              {t('taskLockdownSection')}
+            </div>
+
+            <p className="sabotage-uses">
+              {t('usesLeftMsg', taskLockdownUsesLeft, settings.maxTaskLockdowns)}
+            </p>
+
+            {taskLockdownActive ? (
+              <span className="sabotage-active-badge">{t('taskLockdownActiveBadge')}</span>
+            ) : taskLockdownUsesLeft <= 0 ? (
+              <button className="btn btn-red btn-large" disabled style={{ opacity: 0.3 }}>
+                {t('noUsesLeft')}
+              </button>
+            ) : Date.now() < taskLockdownCooldownUntil ? (
+              <>
+                <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{t('cooldownLabel')}</p>
+                <CooldownRing
+                  cooldownUntil={taskLockdownCooldownUntil}
+                  totalDuration={settings.taskLockdownCooldown}
+                  size={60}
+                />
+              </>
+            ) : (
+              <button className="btn btn-red btn-large" onClick={triggerTaskLockdown}>
+                {t('taskLockdownBtn')}
               </button>
             )}
           </div>

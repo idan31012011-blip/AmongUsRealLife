@@ -21,6 +21,11 @@ const defaultSettings = {
   fileReadingEnabled: false,
   fileReadingTimerDuration: 90000,
   fileReadingPenaltyCooldown: 30000,
+  engineerEnabled: false,
+  taskLockdownEnabled: false,
+  maxTaskLockdowns: 1,
+  taskLockdownCooldown: 30000,
+  taskLockdownStation: null,
 };
 
 const defaultSabotage = {
@@ -35,6 +40,10 @@ const defaultSabotage = {
   criticalCountdownCooldownUntil: 0,
   criticalCountdownUsesLeft: 1,
   criticalCountdownStationRoom: null,
+  taskLockdownActive: false,
+  taskLockdownStationRoom: null,
+  taskLockdownCooldownUntil: 0,
+  taskLockdownUsesLeft: 1,
 };
 
 const initialState = {
@@ -71,6 +80,7 @@ const initialState = {
   stationAssignments: [],    // [{ playerId, roomName, playerName, hasMeeting }] — lobby
   pendingStationNotice: null, // { roomName } — shown when station disconnects
   isDoctor: false,           // doctor sub-role
+  isEngineer: false,         // engineer sub-role
   reportBodyWindowEnd: null, // ms timestamp when current report window expires (null = no window)
   canUndoSelfKill: false,    // crewmate self-reported dead and can still undo before next meeting
   easyModePlayers: [],       // [playerId] — players assigned easy mode (lobby only)
@@ -215,6 +225,9 @@ function reducer(state, action) {
 
     case 'DOCTOR_ASSIGNED':
       return { ...state, isDoctor: true };
+
+    case 'ENGINEER_ASSIGNED':
+      return { ...state, isEngineer: true };
 
     case 'ALL_REVEALED':
       return { ...state, phase: 'gameplay', taskProgressPercent: action.taskProgressPercent };
@@ -385,6 +398,10 @@ function reducer(state, action) {
             criticalCountdownCooldownUntil: action.sabotage.criticalCountdown?.cooldownUntil ?? 0,
             criticalCountdownUsesLeft: action.sabotage.criticalCountdown?.usesLeft ?? 1,
             criticalCountdownStationRoom: null,
+            taskLockdownActive: action.sabotage.taskLockdown?.active ?? false,
+            taskLockdownStationRoom: action.sabotage.taskLockdown?.stationRoom ?? null,
+            taskLockdownCooldownUntil: action.sabotage.taskLockdown?.cooldownUntil ?? 0,
+            taskLockdownUsesLeft: action.sabotage.taskLockdown?.usesLeft ?? 1,
           }
         : state.sabotage;
 
@@ -412,6 +429,7 @@ function reducer(state, action) {
         pendingLockNotification: restoredNotification,
         myCode: action.myCode ?? state.myCode,
         isDoctor: action.isDoctor ?? state.isDoctor,
+        isEngineer: action.isEngineer ?? state.isEngineer,
         canUndoSelfKill: action.canUndoSelfKill ?? false,
         myVote: action.myVote ?? null,
         totalVotesIn: action.totalVotesIn ?? state.totalVotesIn,
@@ -538,6 +556,30 @@ function reducer(state, action) {
           criticalCountdownCooldownUntil: action.criticalCountdown?.cooldownUntil ?? 0,
           criticalCountdownUsesLeft: action.criticalCountdown?.usesLeft ?? 0,
           criticalCountdownStationRoom: state.sabotage.criticalCountdownStationRoom,
+          taskLockdownActive: action.taskLockdown?.active ?? state.sabotage.taskLockdownActive,
+          taskLockdownStationRoom: action.taskLockdown?.stationRoom ?? state.sabotage.taskLockdownStationRoom,
+          taskLockdownCooldownUntil: action.taskLockdown?.cooldownUntil ?? 0,
+          taskLockdownUsesLeft: action.taskLockdown?.usesLeft ?? 0,
+        },
+      };
+
+    case 'TASK_LOCKDOWN_STARTED':
+      return {
+        ...state,
+        sabotage: {
+          ...state.sabotage,
+          taskLockdownActive: true,
+          taskLockdownStationRoom: action.stationRoom,
+        },
+      };
+
+    case 'TASK_LOCKDOWN_FIXED':
+      return {
+        ...state,
+        sabotage: {
+          ...state.sabotage,
+          taskLockdownActive: false,
+          taskLockdownStationRoom: null,
         },
       };
 
@@ -614,6 +656,10 @@ export function GameProvider({ children }) {
 
     socket.on('doctor_assigned', () => {
       dispatch({ type: 'DOCTOR_ASSIGNED' });
+    });
+
+    socket.on('engineer_assigned', () => {
+      dispatch({ type: 'ENGINEER_ASSIGNED' });
     });
 
     socket.on('all_revealed', ({ taskProgressPercent }) => {
@@ -738,6 +784,14 @@ export function GameProvider({ children }) {
       dispatch({ type: 'SABOTAGE_STATUS', ...data });
     });
 
+    socket.on('task_lockdown_started', ({ stationRoom }) => {
+      dispatch({ type: 'TASK_LOCKDOWN_STARTED', stationRoom });
+    });
+
+    socket.on('task_lockdown_fixed', () => {
+      dispatch({ type: 'TASK_LOCKDOWN_FIXED' });
+    });
+
     socket.on('error', ({ message }) => {
       dispatch({ type: 'SET_ERROR', message });
       setTimeout(() => dispatch({ type: 'CLEAR_ERROR' }), 4000);
@@ -759,6 +813,7 @@ export function GameProvider({ children }) {
       socket.off('stations_updated');
       socket.off('station_disconnected');
       socket.off('doctor_assigned');
+      socket.off('engineer_assigned');
       socket.off('all_revealed');
       socket.off('task_completed');
       socket.off('kill_initiated');
@@ -789,6 +844,8 @@ export function GameProvider({ children }) {
       socket.off('critical_countdown_started');
       socket.off('critical_countdown_success');
       socket.off('sabotage_status');
+      socket.off('task_lockdown_started');
+      socket.off('task_lockdown_fixed');
       socket.off('error');
     };
   }, []);
