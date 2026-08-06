@@ -395,6 +395,7 @@ function reducer(state, action) {
 
       return {
         ...state,
+        gameCode: action.code,
         phase: action.phase,
         players: action.players,
         rooms: action.rooms,
