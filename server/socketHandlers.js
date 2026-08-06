@@ -213,6 +213,9 @@ function registerHandlers(io, socket) {
     // Engineer
     if (typeof settings.engineerEnabled === 'boolean') validated.engineerEnabled = settings.engineerEnabled;
 
+    // Analyst
+    if (typeof settings.analystEnabled === 'boolean') validated.analystEnabled = settings.analystEnabled;
+
     // Sabotage booleans
     if (typeof settings.sabotageEnabled === 'boolean') validated.sabotageEnabled = settings.sabotageEnabled;
     if (typeof settings.roomLockingEnabled === 'boolean') validated.roomLockingEnabled = settings.roomLockingEnabled;
@@ -430,6 +433,17 @@ function registerHandlers(io, socket) {
       }
     }
 
+    // Assign analyst sub-role — mutually exclusive with doctor and engineer
+    game.analystId = null;
+    if (game.settings.analystEnabled) {
+      const eligible = [...game.players.values()].filter(
+        p => p.role !== 'station' && p.id !== game.doctorId && p.id !== game.engineerId
+      );
+      if (eligible.length > 0) {
+        game.analystId = eligible[Math.floor(Math.random() * eligible.length)].id;
+      }
+    }
+
     io.to(code).emit('game_started', { players: buildPublicPlayerList(game.players) });
 
     // Send each player their role and tasks privately
@@ -458,6 +472,11 @@ function registerHandlers(io, socket) {
     // Notify engineer privately
     if (game.engineerId) {
       io.to(game.engineerId).emit('engineer_assigned');
+    }
+
+    // Notify analyst privately, with the starting (all-zero) progress snapshot
+    if (game.analystId) {
+      io.to(game.analystId).emit('analyst_assigned', { progress: buildAnalystProgress(game) });
     }
 
     // Give the imposter their initial sabotage state so use counts reflect actual settings
@@ -548,12 +567,7 @@ function registerHandlers(io, socket) {
       game.taskHoldStartTimes.delete(taskId);
     }
 
-    task.completed = true;
-    player.tasksCompleted.add(taskId);
-
-    const progressPercent = calculateTaskProgress(game.tasks);
-
-    io.to(code).emit('task_completed', { taskId, progressPercent, playerId: socket.id });
+    finishTask(io, game, task, player);
 
     // Check crewmate win by tasks
     const result = checkWinConditions(game);
@@ -654,11 +668,7 @@ function registerHandlers(io, socket) {
       game.playerMiniGameHistory.set(playerId, history);
     }
 
-    stationTask.completed = true;
-    player.tasksCompleted.add(stationTask.id);
-
-    const progressPercent = calculateTaskProgress(game.tasks);
-    io.to(code).emit('task_completed', { taskId: stationTask.id, progressPercent, playerId });
+    finishTask(io, game, stationTask, player);
     socket.emit('station_success', { playerName: player.name });
 
     const result = checkWinConditions(game);
@@ -1218,6 +1228,9 @@ function registerHandlers(io, socket) {
     // Reset game back to lobby, keeping same players and rooms
     if (game.votingTimeout) clearTimeout(game.votingTimeout);
 
+    for (const timeoutId of game.progressSyncTimeouts) clearTimeout(timeoutId);
+    game.progressSyncTimeouts = [];
+
     // Clear any active sabotage timeouts
     for (const { timeoutId } of game.sabotage.lockedRooms.values()) {
       if (timeoutId) clearTimeout(timeoutId);
@@ -1245,6 +1258,7 @@ function registerHandlers(io, socket) {
     game.playerCodes = new Map();
     game.doctorId = null;
     game.engineerId = null;
+    game.analystId = null;
     game.bodyReportWindow = null;
     game.sabotage = {
       lockedRooms: new Map(),
@@ -1663,10 +1677,16 @@ function performRejoin(io, socket, code, trimmedName) {
       sabotage: sabotageForPlayer,
       isDoctor: game.doctorId === socket.id,
       isEngineer: game.engineerId === socket.id,
+      isAnalyst: game.analystId === socket.id,
       canUndoSelfKill: !!player.selfReported,
       myVote: game.phase === 'voting' ? (game.votes.get(socket.id) ?? null) : null,
       totalVotesIn: game.phase === 'voting' ? game.votes.size : 0,
     });
+
+    // Resend the current per-player progress snapshot to a reconnecting Analyst
+    if (game.analystId === socket.id) {
+      socket.emit('analyst_progress', { progress: buildAnalystProgress(game) });
+    }
   }
 
   io.to(code).emit('player_reconnected', { playerId: socket.id, name: trimmedName });
@@ -1691,6 +1711,7 @@ function migratePlayerId(game, oldId, newId) {
 
   if (game.doctorId === oldId) game.doctorId = newId;
   if (game.engineerId === oldId) game.engineerId = newId;
+  if (game.analystId === oldId) game.analystId = newId;
 
   if (game.easyModePlayers.has(oldId)) {
     game.easyModePlayers.delete(oldId);
@@ -1716,6 +1737,51 @@ function migratePlayerId(game, oldId, newId) {
     game.revealedPlayers.delete(oldId);
     game.revealedPlayers.add(newId);
   }
+}
+
+// Marks a task done, notifies the completer's own client immediately (so their
+// UI never lags behind their own hold-to-complete gesture), and separately
+// queues the shared task-progress bar to catch up after a random delay — this
+// keeps "who just finished a task" from ever being visibly correlated with
+// "the top bar just moved," which would otherwise let anyone watching both
+// signals (e.g. the Analyst) work out whether that task counted as real.
+function finishTask(io, game, task, player) {
+  task.completed = true;
+  player.tasksCompleted.add(task.id);
+
+  io.to(game.code).emit('task_completed', { taskId: task.id, playerId: player.id });
+
+  if (!task.isFake) scheduleProgressSync(io, game);
+
+  if (game.analystId) {
+    io.to(game.analystId).emit('analyst_progress', { progress: buildAnalystProgress(game) });
+  }
+}
+
+function scheduleProgressSync(io, game) {
+  const delay = Math.floor(Math.random() * 30000); // 0–30s
+  const timeoutId = setTimeout(() => {
+    const g = getGame(game.code);
+    if (!g) return;
+    g.progressSyncTimeouts = g.progressSyncTimeouts.filter(id => id !== timeoutId);
+    io.to(g.code).emit('progress_sync', { progressPercent: calculateTaskProgress(g.tasks) });
+  }, delay);
+  game.progressSyncTimeouts.push(timeoutId);
+}
+
+// Per-player completed/total counts across ALL of that player's assigned tasks
+// (real and fake alike) — deliberately never split out real vs. fake, so the
+// Analyst's view can't be summed against the (real-tasks-only) progress bar
+// to back out who's the imposter.
+function buildAnalystProgress(game) {
+  return [...game.players.values()]
+    .filter(p => p.role !== 'station')
+    .map(p => ({
+      playerId: p.id,
+      name: p.name,
+      completed: p.tasksCompleted.size,
+      total: p.tasksAssigned.length,
+    }));
 }
 
 function canDoTask(player, game) {
@@ -1812,6 +1878,10 @@ function resolveVoting(io, game) {
 
 function endGame(io, game, { winner, reason }) {
   game.phase = 'game_end';
+
+  // No point letting a delayed task-bar reveal fire after the game's over
+  for (const timeoutId of game.progressSyncTimeouts) clearTimeout(timeoutId);
+  game.progressSyncTimeouts = [];
 
   const imposter = [...game.players.values()].find(p => p.role === 'imposter');
 

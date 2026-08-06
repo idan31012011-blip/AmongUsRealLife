@@ -291,6 +291,13 @@ export const translations = {
     engineerNotification: 'You are also the Engineer',
     engineerNotificationDesc: 'Only you can fix a Task Lockdown sabotage.',
 
+    // Analyst
+    settingsAnalyst: 'Analyst',
+    analystEnabledLabel: 'Enable Analyst sub-role',
+    analystNotification: 'You are also the Analyst',
+    analystNotificationDesc: 'You can see each player\'s own task progress.',
+    analystTitle: 'Task Analysis',
+
     // File Reading task
     settingsFileReading: 'File Reading Task',
     fileReadingEnabledLabel: 'Enable file reading task',
@@ -619,6 +626,13 @@ export const translations = {
     engineerEnabledLabel: 'הפעל תפקיד משנה: מהנדס',
     engineerNotification: 'אתה גם המהנדס',
     engineerNotificationDesc: 'רק אתה יכול לתקן חבלת השבתת משימות.',
+
+    // Analyst
+    settingsAnalyst: 'אנליסט',
+    analystEnabledLabel: 'הפעל תפקיד משנה: אנליסט',
+    analystNotification: 'אתה גם האנליסט',
+    analystNotificationDesc: 'תוכל לראות את התקדמות המשימות של כל שחקן.',
+    analystTitle: 'ניתוח משימות',
 
     // File Reading task
     settingsFileReading: 'משימת קריאת קבצים',

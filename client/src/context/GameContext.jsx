@@ -26,6 +26,7 @@ const defaultSettings = {
   maxTaskLockdowns: 1,
   taskLockdownCooldown: 30000,
   taskLockdownStation: null,
+  analystEnabled: false,
 };
 
 const defaultSabotage = {
@@ -81,6 +82,8 @@ const initialState = {
   pendingStationNotice: null, // { roomName } — shown when station disconnects
   isDoctor: false,           // doctor sub-role
   isEngineer: false,         // engineer sub-role
+  isAnalyst: false,          // analyst sub-role
+  analystProgress: [],       // [{ playerId, name, completed, total }] — analyst only
   reportBodyWindowEnd: null, // ms timestamp when current report window expires (null = no window)
   canUndoSelfKill: false,    // crewmate self-reported dead and can still undo before next meeting
   easyModePlayers: [],       // [playerId] — players assigned easy mode (lobby only)
@@ -233,13 +236,23 @@ function reducer(state, action) {
       return { ...state, phase: 'gameplay', taskProgressPercent: action.taskProgressPercent };
 
     case 'TASK_COMPLETED':
+      // The shared task-bar percent arrives separately (and after a random
+      // delay) via PROGRESS_SYNC — see server's finishTask() for why.
       return {
         ...state,
-        taskProgressPercent: action.progressPercent,
         myTasks: state.myTasks.map(t =>
           t.id === action.taskId ? { ...t, completed: true } : t
         ),
       };
+
+    case 'PROGRESS_SYNC':
+      return { ...state, taskProgressPercent: action.progressPercent };
+
+    case 'ANALYST_ASSIGNED':
+      return { ...state, isAnalyst: true, analystProgress: action.progress ?? [] };
+
+    case 'ANALYST_PROGRESS':
+      return { ...state, analystProgress: action.progress ?? [] };
 
     case 'KILL_INITIATED':
       // Only fired on the victim; show red screen
@@ -430,6 +443,7 @@ function reducer(state, action) {
         myCode: action.myCode ?? state.myCode,
         isDoctor: action.isDoctor ?? state.isDoctor,
         isEngineer: action.isEngineer ?? state.isEngineer,
+        isAnalyst: action.isAnalyst ?? state.isAnalyst,
         canUndoSelfKill: action.canUndoSelfKill ?? false,
         myVote: action.myVote ?? null,
         totalVotesIn: action.totalVotesIn ?? state.totalVotesIn,
@@ -662,6 +676,18 @@ export function GameProvider({ children }) {
       dispatch({ type: 'ENGINEER_ASSIGNED' });
     });
 
+    socket.on('analyst_assigned', ({ progress }) => {
+      dispatch({ type: 'ANALYST_ASSIGNED', progress });
+    });
+
+    socket.on('analyst_progress', ({ progress }) => {
+      dispatch({ type: 'ANALYST_PROGRESS', progress });
+    });
+
+    socket.on('progress_sync', ({ progressPercent }) => {
+      dispatch({ type: 'PROGRESS_SYNC', progressPercent });
+    });
+
     socket.on('all_revealed', ({ taskProgressPercent }) => {
       dispatch({ type: 'ALL_REVEALED', taskProgressPercent });
     });
@@ -814,6 +840,9 @@ export function GameProvider({ children }) {
       socket.off('station_disconnected');
       socket.off('doctor_assigned');
       socket.off('engineer_assigned');
+      socket.off('analyst_assigned');
+      socket.off('analyst_progress');
+      socket.off('progress_sync');
       socket.off('all_revealed');
       socket.off('task_completed');
       socket.off('kill_initiated');

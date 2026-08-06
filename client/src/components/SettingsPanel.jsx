@@ -95,6 +95,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
     stationMiniGames: settings.stationMiniGames ?? ['simon', 'stopbar', 'wireconnect'],
     doctorEnabled: settings.doctorEnabled ?? false,
     engineerEnabled: settings.engineerEnabled ?? false,
+    analystEnabled: settings.analystEnabled ?? false,
     criticalCountdownEnabled: settings.criticalCountdownEnabled ?? false,
     criticalCountdownDuration: toSec(settings.criticalCountdownDuration ?? 40000),
     criticalCountdownCooldown: toSec(settings.criticalCountdownCooldown ?? 30000),
@@ -136,6 +137,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
       stationMiniGames: settings.stationMiniGames ?? ['simon', 'stopbar', 'wireconnect'],
       doctorEnabled: settings.doctorEnabled ?? false,
       engineerEnabled: settings.engineerEnabled ?? false,
+      analystEnabled: settings.analystEnabled ?? false,
       criticalCountdownEnabled: settings.criticalCountdownEnabled ?? false,
       criticalCountdownDuration: toSec(settings.criticalCountdownDuration ?? 40000),
       criticalCountdownCooldown: toSec(settings.criticalCountdownCooldown ?? 30000),
@@ -209,6 +211,7 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
         stationMiniGames: local.stationMiniGames,
         doctorEnabled: local.doctorEnabled,
         engineerEnabled: local.engineerEnabled,
+        analystEnabled: local.analystEnabled,
         criticalCountdownEnabled: local.criticalCountdownEnabled,
         criticalCountdownDuration: toMs(local.criticalCountdownDuration),
         criticalCountdownCooldown: toMs(local.criticalCountdownCooldown),
@@ -584,6 +587,13 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
 
         <SettingsRow label={t('engineerEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOff'))}>
           <Toggle checked={local.engineerEnabled} onChange={v => set('engineerEnabled', v)} disabled={ro} />
+        </SettingsRow>
+
+        {/* ── Analyst ─────────────────────────────────────────────────── */}
+        <div className="settings-section-title" style={{ marginTop: 20 }}>{t('settingsAnalyst')}</div>
+
+        <SettingsRow label={t('analystEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOff'))}>
+          <Toggle checked={local.analystEnabled} onChange={v => set('analystEnabled', v)} disabled={ro} />
         </SettingsRow>
 
         {/* ── File Reading ────────────────────────────────────────────── */}

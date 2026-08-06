@@ -2421,6 +2421,16 @@ input {
   color: #ffb428;
 }
 
+/* Analyst reveal badge reuses the doctor badge shape with a violet tint */
+.analyst-reveal-badge {
+  background: rgba(150, 80, 230, 0.15);
+  border-color: rgba(180, 120, 255, 0.35);
+}
+
+.analyst-reveal-badge .doctor-reveal-title {
+  color: #b478ff;
+}
+
 /* Task-blocked message (GameScreen task area during Task Lockdown) */
 .task-lockdown-block {
   flex: 1;
@@ -2455,6 +2465,12 @@ input {
 .btn-monitor {
   background: rgba(0, 180, 120, 0.15);
   border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+/* Analyst button in game bottom bar — violet variant of the monitor button */
+.btn-analyst {
+  background: rgba(150, 80, 230, 0.15);
+  border: 1px solid rgba(180, 120, 255, 0.3);
 }
 
 .btn-monitor:active {
@@ -2556,6 +2572,41 @@ input {
   flex: 1;
   border-radius: 4px;
   display: block;
+}
+
+/* ── Analyst board (reuses the monitor overlay/menu/list shell) ─────────── */
+.analyst-title {
+  color: #b478ff;
+}
+
+.analyst-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(180,120,255,0.1);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+}
+
+.analyst-player-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 80px;
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.analyst-bar-track {
+  flex: 1;
+  height: 10px;
+}
+
+.analyst-bar-fill {
+  background: linear-gradient(90deg, #8a4fe0, #b478ff);
 }
 
 /* ── Report Body / Found Me (stations mode) ─────────────────────────────── */

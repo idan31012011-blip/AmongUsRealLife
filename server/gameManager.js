@@ -30,6 +30,8 @@ function createGame({ managerId, rooms, settings }) {
     pendingMiniGames: new Map(),      // Map<playerId, miniGame> — assigned but not yet completed
     doctorId: null,                   // playerId of the doctor (sub-role)
     engineerId: null,                 // playerId of the engineer (sub-role)
+    analystId: null,                  // playerId of the analyst (sub-role)
+    progressSyncTimeouts: [],         // pending setTimeout handles for delayed task-bar reveals
     bodyReportWindow: null,           // { bodyId, expiresAt, imposterOnly, timeoutId } | null
     lobbyCleanupTimeout: null,        // setTimeout handle — deferred cleanup when lobby empties
     settings: {
@@ -49,6 +51,7 @@ function createGame({ managerId, rooms, settings }) {
       stationMiniGames:             settings?.stationMiniGames             ?? ['simon', 'stopbar', 'wireconnect'],
       doctorEnabled:                settings?.doctorEnabled                ?? false,
       engineerEnabled:              settings?.engineerEnabled              ?? false,
+      analystEnabled:               settings?.analystEnabled               ?? false,
       criticalCountdownEnabled:     settings?.criticalCountdownEnabled     ?? false,
       criticalCountdownDuration:    settings?.criticalCountdownDuration    ?? 40000,
       criticalCountdownCooldown:    settings?.criticalCountdownCooldown    ?? 30000,
@@ -96,6 +99,9 @@ function deleteGame(code) {
   if (game) {
     if (game.lobbyCleanupTimeout) clearTimeout(game.lobbyCleanupTimeout);
     if (game.votingTimeout) clearTimeout(game.votingTimeout);
+    for (const timeoutId of game.progressSyncTimeouts) {
+      clearTimeout(timeoutId);
+    }
     for (const { timeoutId } of game.sabotage.lockedRooms.values()) {
       if (timeoutId) clearTimeout(timeoutId);
     }

@@ -9,6 +9,7 @@ import Modal from '../components/Modal';
 import SabotageMenu from '../components/SabotageMenu';
 import LockdownNotification from '../components/LockdownNotification';
 import MonitorMenu from '../components/MonitorMenu';
+import AnalystMenu from '../components/AnalystMenu';
 
 // Countdown for a locked room (shown on left side panel)
 function RoomLockTimer({ expiresAt }) {
@@ -71,7 +72,7 @@ export default function GameScreen() {
   const { t } = useLanguage();
   const {
     myRole, isAlive, players, gameCode, taskProgressPercent, myId, isManager,
-    settings, sabotage, pendingLockNotification, pendingStationNotice, rooms, isDoctor, isEngineer,
+    settings, sabotage, pendingLockNotification, pendingStationNotice, rooms, isDoctor, isEngineer, isAnalyst,
     reportBodyWindowEnd, canUndoSelfKill,
   } = state;
 
@@ -82,6 +83,7 @@ export default function GameScreen() {
   const [disguised, setDisguised] = useState(false);
   const [showSabotageMenu, setShowSabotageMenu] = useState(false);
   const [showMonitor, setShowMonitor] = useState(false);
+  const [showAnalyst, setShowAnalyst] = useState(false);
   const [showManagerKickMenu, setShowManagerKickMenu] = useState(false);
   const [pendingKickTarget, setPendingKickTarget] = useState(null);
   const [showCode, setShowCode] = useState(false);
@@ -280,6 +282,13 @@ export default function GameScreen() {
             </button>
           )}
 
+          {isAnalyst && (
+            <button className="btn-action btn-analyst" onClick={() => setShowAnalyst(true)}>
+              <span className="btn-action-icon">📊</span>
+              <span className="btn-action-label">{t('analystTitle')}</span>
+            </button>
+          )}
+
           {isImposter && !disguised && settings.sabotageEnabled && (
             <button
               className="btn-action btn-sabotage"
@@ -430,6 +439,9 @@ export default function GameScreen() {
 
       {/* Doctor monitor */}
       {showMonitor && <MonitorMenu onClose={() => setShowMonitor(false)} />}
+
+      {/* Analyst progress board */}
+      {showAnalyst && <AnalystMenu onClose={() => setShowAnalyst(false)} />}
 
       {/* Critical Countdown banner — shown to ALL players, non-blocking */}
       {criticalCountdownActive && sabotage.criticalCountdownExpiresAt && (
