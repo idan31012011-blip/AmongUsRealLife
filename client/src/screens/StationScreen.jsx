@@ -5,6 +5,8 @@ import socket from '../socket';
 import SimonSaysGame from './SimonSaysGame';
 import StopTheBarGame from './StopTheBarGame';
 import WireConnectGame from './WireConnectGame';
+import CameraSourceOverlay from '../components/CameraSourceOverlay';
+import CameraMonitorPanel from '../components/CameraMonitorPanel';
 
 function CriticalCountdownTimer({ expiresAt }) {
   const [secs, setSecs] = useState(() => Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
@@ -345,6 +347,9 @@ export default function StationScreen() {
   return (
     <div className="screen station-screen">
       <div className="station-room-title">{t('stationScreenTitle', stationRoom ?? '?')}</div>
+
+      <CameraSourceOverlay />
+      {state.stationCameras && <CameraMonitorPanel />}
 
       {stationHasMeeting && uiPhase === 'idle' && !isRoomLocked && (
         <button className="btn btn-red btn-large station-meeting-btn" onClick={callMeeting}>

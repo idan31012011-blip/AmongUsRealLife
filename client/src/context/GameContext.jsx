@@ -27,6 +27,10 @@ const defaultSettings = {
   taskLockdownCooldown: 30000,
   taskLockdownStation: null,
   analystEnabled: false,
+  camerasEnabled: false,
+  cameraMonitorStation: null,
+  cameraViewDuration: 30000,
+  cameraViewCooldown: 30000,
 };
 
 const defaultSabotage = {
@@ -78,6 +82,7 @@ const initialState = {
   myCode: null,              // 3-digit string, non-station players only
   stationRoom: null,         // room this device is a station for
   stationHasMeeting: false,  // whether this station device has the meeting button
+  stationCameras: null,      // [{ stationId, roomName }] | null — set only on the camera monitor station
   stationAssignments: [],    // [{ playerId, roomName, playerName, hasMeeting }] — lobby
   pendingStationNotice: null, // { roomName } — shown when station disconnects
   isDoctor: false,           // doctor sub-role
@@ -208,7 +213,11 @@ function reducer(state, action) {
         myRole: 'station',
         stationRoom: action.roomName,
         stationHasMeeting: action.hasMeeting ?? false,
+        stationCameras: action.cameras ?? null,
       };
+
+    case 'CAMERA_LIST_UPDATED':
+      return { ...state, stationCameras: action.cameras };
 
     case 'STATIONS_UPDATED':
       return { ...state, stationAssignments: action.stations };
@@ -391,6 +400,7 @@ function reducer(state, action) {
         myCode: null,
         stationRoom: null,
         stationHasMeeting: false,
+        stationCameras: null,
         pendingStationNotice: null,
         isDoctor: false,
         reportBodyWindowEnd: null,
@@ -656,8 +666,12 @@ export function GameProvider({ children }) {
       dispatch({ type: 'ROLE_ASSIGNED', role, tasks, killCooldownUntil, myCode, isEasyMode });
     });
 
-    socket.on('station_device_ready', ({ roomName, hasMeeting }) => {
-      dispatch({ type: 'STATION_DEVICE_READY', roomName, hasMeeting });
+    socket.on('station_device_ready', ({ roomName, hasMeeting, cameras }) => {
+      dispatch({ type: 'STATION_DEVICE_READY', roomName, hasMeeting, cameras });
+    });
+
+    socket.on('camera_list_updated', ({ cameras }) => {
+      dispatch({ type: 'CAMERA_LIST_UPDATED', cameras });
     });
 
     socket.on('stations_updated', ({ stations }) => {
@@ -836,6 +850,7 @@ export function GameProvider({ children }) {
       socket.off('game_started');
       socket.off('role_assigned');
       socket.off('station_device_ready');
+      socket.off('camera_list_updated');
       socket.off('stations_updated');
       socket.off('station_disconnected');
       socket.off('doctor_assigned');

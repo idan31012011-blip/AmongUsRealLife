@@ -216,6 +216,19 @@ function registerHandlers(io, socket) {
     // Analyst
     if (typeof settings.analystEnabled === 'boolean') validated.analystEnabled = settings.analystEnabled;
 
+    // Cameras
+    if (typeof settings.camerasEnabled === 'boolean') validated.camerasEnabled = settings.camerasEnabled;
+
+    if (typeof settings.cameraMonitorStation === 'string' || settings.cameraMonitorStation === null) {
+      validated.cameraMonitorStation = settings.cameraMonitorStation || null;
+    }
+
+    const cvd = clampInt(settings.cameraViewDuration, 10000, 120000);
+    if (cvd !== null) validated.cameraViewDuration = cvd;
+
+    const cvc = clampInt(settings.cameraViewCooldown, 5000, 300000);
+    if (cvc !== null) validated.cameraViewCooldown = cvc;
+
     // Sabotage booleans
     if (typeof settings.sabotageEnabled === 'boolean') validated.sabotageEnabled = settings.sabotageEnabled;
     if (typeof settings.roomLockingEnabled === 'boolean') validated.roomLockingEnabled = settings.roomLockingEnabled;
@@ -449,9 +462,12 @@ function registerHandlers(io, socket) {
     // Send each player their role and tasks privately
     for (const [id, player] of game.players) {
       if (player.role === 'station') {
+        const isCameraMonitor = game.settings.camerasEnabled &&
+          game.settings.cameraMonitorStation === game.stationRooms.get(id);
         io.to(id).emit('station_device_ready', {
           roomName: game.stationRooms.get(id),
           hasMeeting: game.stationMeetingEnabled.get(id) ?? false,
+          cameras: isCameraMonitor ? buildCameraList(game, id) : undefined,
         });
       } else {
         io.to(id).emit('role_assigned', {
@@ -673,6 +689,55 @@ function registerHandlers(io, socket) {
 
     const result = checkWinConditions(game);
     if (result) endGame(io, game, result);
+  });
+
+  // ─── STATION CAMERAS ────────────────────────────────────────────────────
+
+  socket.on('camera_view_request', ({ code, targetStationId } = {}) => {
+    const game = getGame(code);
+    if (!game || game.phase !== 'gameplay') return;
+    if (!game.settings.camerasEnabled) return socket.emit('error', { message: 'Cameras are disabled.' });
+    if (!game.stations.has(socket.id)) return;
+
+    const monitorStationId = getCameraMonitorStationId(game);
+    if (!monitorStationId || socket.id !== monitorStationId) {
+      return socket.emit('error', { message: 'Not the camera monitor station.' });
+    }
+    if (game.activeCameraView) return socket.emit('error', { message: 'Already viewing a camera.' });
+    if (targetStationId === socket.id || !game.stations.has(targetStationId)) {
+      return socket.emit('error', { message: 'Invalid camera.' });
+    }
+
+    const cooldownUntil = game.cameraViewCooldowns.get(targetStationId) ?? 0;
+    if (Date.now() < cooldownUntil) return socket.emit('error', { message: 'Camera on cooldown.' });
+
+    const expiresAt = Date.now() + game.settings.cameraViewDuration;
+    const timeoutId = setTimeout(() => {
+      const g = getGame(code);
+      if (g) endCameraView(io, g);
+    }, game.settings.cameraViewDuration);
+
+    game.activeCameraView = { targetStationId, expiresAt, timeoutId };
+
+    socket.emit('camera_view_started', { targetStationId, expiresAt });
+    io.to(targetStationId).emit('camera_being_watched', { viewerId: socket.id, expiresAt });
+  });
+
+  // Opaque relay for WebRTC offer/answer/ICE candidates — the server never
+  // inspects the signal payload, it just forwards it to the other half of
+  // the currently active monitor↔camera pair.
+  socket.on('camera_signal', ({ code, targetId, signal } = {}) => {
+    const game = getGame(code);
+    if (!game || !game.activeCameraView) return;
+
+    const monitorStationId = getCameraMonitorStationId(game);
+    const { targetStationId } = game.activeCameraView;
+    const validPair =
+      (socket.id === monitorStationId && targetId === targetStationId) ||
+      (socket.id === targetStationId && targetId === monitorStationId);
+    if (!validPair) return;
+
+    io.to(targetId).emit('camera_signal', { fromId: socket.id, signal });
   });
 
   // ─── MOTION ───────────────────────────────────────────────────────────────
@@ -1231,6 +1296,10 @@ function registerHandlers(io, socket) {
     for (const timeoutId of game.progressSyncTimeouts) clearTimeout(timeoutId);
     game.progressSyncTimeouts = [];
 
+    if (game.activeCameraView?.timeoutId) clearTimeout(game.activeCameraView.timeoutId);
+    game.activeCameraView = null;
+    game.cameraViewCooldowns = new Map();
+
     // Clear any active sabotage timeouts
     for (const { timeoutId } of game.sabotage.lockedRooms.values()) {
       if (timeoutId) clearTimeout(timeoutId);
@@ -1352,6 +1421,19 @@ function registerHandlers(io, socket) {
       if (game.stations.has(socket.id)) {
         const stationRoom = game.stationRooms.get(socket.id);
         if (stationRoom) revertStationTasks(io, game, stationRoom, getTaskDescription);
+
+        if (game.settings.camerasEnabled) {
+          if (game.activeCameraView?.targetStationId === socket.id) {
+            clearTimeout(game.activeCameraView.timeoutId);
+            game.activeCameraView = null;
+          }
+          const monitorStationId = getCameraMonitorStationId(game);
+          if (monitorStationId && monitorStationId !== socket.id) {
+            io.to(monitorStationId).emit('camera_view_ended', { targetStationId: socket.id });
+            io.to(monitorStationId).emit('camera_list_updated', { cameras: buildCameraList(game, monitorStationId) });
+          }
+        }
+
         game.stations.delete(socket.id);
         game.stationRooms.delete(socket.id);
         game.stationMeetingEnabled.delete(socket.id);
@@ -1427,6 +1509,37 @@ function revertStationTasks(io, game, roomName) {
   if (revertedTasks.length > 0) {
     io.to(game.code).emit('station_disconnected', { roomName, revertedTasks });
   }
+}
+
+// ─── CAMERA HELPERS ─────────────────────────────────────────────────────────
+
+function getCameraMonitorStationId(game) {
+  if (!game.settings.cameraMonitorStation) return null;
+  for (const [id, room] of game.stationRooms) {
+    if (room === game.settings.cameraMonitorStation) return id;
+  }
+  return null;
+}
+
+function buildCameraList(game, excludeId) {
+  const list = [];
+  for (const [playerId, roomName] of game.stationRooms) {
+    if (playerId === excludeId) continue;
+    list.push({ stationId: playerId, roomName });
+  }
+  return list;
+}
+
+function endCameraView(io, game) {
+  if (!game.activeCameraView) return;
+  const { targetStationId, timeoutId } = game.activeCameraView;
+  clearTimeout(timeoutId);
+  game.cameraViewCooldowns.set(targetStationId, Date.now() + game.settings.cameraViewCooldown);
+  game.activeCameraView = null;
+
+  const monitorStationId = getCameraMonitorStationId(game);
+  if (monitorStationId) io.to(monitorStationId).emit('camera_view_ended', { targetStationId });
+  io.to(targetStationId).emit('camera_view_ended', { targetStationId });
 }
 
 // ─── SABOTAGE HELPERS ───────────────────────────────────────────────────────
@@ -1882,6 +1995,9 @@ function endGame(io, game, { winner, reason }) {
   // No point letting a delayed task-bar reveal fire after the game's over
   for (const timeoutId of game.progressSyncTimeouts) clearTimeout(timeoutId);
   game.progressSyncTimeouts = [];
+
+  if (game.activeCameraView?.timeoutId) clearTimeout(game.activeCameraView.timeoutId);
+  game.activeCameraView = null;
 
   const imposter = [...game.players.values()].find(p => p.role === 'imposter');
 

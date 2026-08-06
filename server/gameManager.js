@@ -32,6 +32,8 @@ function createGame({ managerId, rooms, settings }) {
     engineerId: null,                 // playerId of the engineer (sub-role)
     analystId: null,                  // playerId of the analyst (sub-role)
     progressSyncTimeouts: [],         // pending setTimeout handles for delayed task-bar reveals
+    activeCameraView: null,           // { targetStationId, expiresAt, timeoutId } | null
+    cameraViewCooldowns: new Map(),   // Map<stationPlayerId, cooldownUntil (ms timestamp)>
     bodyReportWindow: null,           // { bodyId, expiresAt, imposterOnly, timeoutId } | null
     lobbyCleanupTimeout: null,        // setTimeout handle — deferred cleanup when lobby empties
     settings: {
@@ -52,6 +54,10 @@ function createGame({ managerId, rooms, settings }) {
       doctorEnabled:                settings?.doctorEnabled                ?? false,
       engineerEnabled:              settings?.engineerEnabled              ?? false,
       analystEnabled:               settings?.analystEnabled               ?? false,
+      camerasEnabled:               settings?.camerasEnabled               ?? false,
+      cameraMonitorStation:         settings?.cameraMonitorStation         ?? null,
+      cameraViewDuration:           settings?.cameraViewDuration           ?? 30000,
+      cameraViewCooldown:           settings?.cameraViewCooldown           ?? 30000,
       criticalCountdownEnabled:     settings?.criticalCountdownEnabled     ?? false,
       criticalCountdownDuration:    settings?.criticalCountdownDuration    ?? 40000,
       criticalCountdownCooldown:    settings?.criticalCountdownCooldown    ?? 30000,
@@ -101,6 +107,9 @@ function deleteGame(code) {
     if (game.votingTimeout) clearTimeout(game.votingTimeout);
     for (const timeoutId of game.progressSyncTimeouts) {
       clearTimeout(timeoutId);
+    }
+    if (game.activeCameraView?.timeoutId) {
+      clearTimeout(game.activeCameraView.timeoutId);
     }
     for (const { timeoutId } of game.sabotage.lockedRooms.values()) {
       if (timeoutId) clearTimeout(timeoutId);

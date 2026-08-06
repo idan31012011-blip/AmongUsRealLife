@@ -184,6 +184,18 @@ export const translations = {
     maxTaskLockdownsLabel: 'Max uses per game',
     taskLockdownStationLabel: 'Designated station (auto if only one)',
 
+    // Cameras
+    settingsCameras: 'Cameras',
+    camerasEnabledLabel: 'Cameras enabled',
+    camerasRequireStations: 'Requires at least 2 stations',
+    cameraMonitorStationLabel: 'Camera monitor station',
+    cameraViewDurationLabel: 'Live view duration',
+    cameraViewCooldownLabel: 'Cooldown between views (per camera)',
+    cameraPanelTitle: 'Cameras',
+    cameraWatchBtn: 'Watch',
+    cameraNoOthers: 'No other stations to watch.',
+    cameraBeingWatchedHint: 'Someone is watching this camera',
+
     // Game end reasons
     reasonCriticalCountdownExpired: 'The crew failed to enter the code in time!',
     reasonImposterDisconnected: 'The Imposter disconnected!',
@@ -520,6 +532,18 @@ export const translations = {
     taskLockdownCooldownLabel: 'זמן קירור בין שימושים',
     maxTaskLockdownsLabel: 'מקס. שימושים למשחק',
     taskLockdownStationLabel: 'עמדה ייעודית (אוטומטי אם יש רק אחת)',
+
+    // Cameras
+    settingsCameras: 'מצלמות',
+    camerasEnabledLabel: 'מצלמות פעילות',
+    camerasRequireStations: 'דורש לפחות 2 עמדות',
+    cameraMonitorStationLabel: 'עמדת ניטור מצלמות',
+    cameraViewDurationLabel: 'משך צפייה חיה',
+    cameraViewCooldownLabel: 'זמן קירור בין צפיות (לכל מצלמה)',
+    cameraPanelTitle: 'מצלמות',
+    cameraWatchBtn: 'צפה',
+    cameraNoOthers: 'אין עמדות נוספות לצפייה.',
+    cameraBeingWatchedHint: 'מישהו צופה במצלמה הזו',
 
     reasonCriticalCountdownExpired: 'הצוות לא הכניס את הקוד בזמן!',
     reasonImposterDisconnected: 'האימפוסטר התנתק!',

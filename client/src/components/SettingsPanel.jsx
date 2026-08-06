@@ -20,6 +20,8 @@ const DEFAULTS_SEC = {
   fileReadingPenaltyCooldown: 30,
   taskLockdownCooldown: 30,
   maxTaskLockdowns: 1,
+  cameraViewDuration: 30,
+  cameraViewCooldown: 30,
 };
 
 function toSec(ms) { return Math.round(ms / 1000); }
@@ -105,6 +107,10 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
     taskLockdownCooldown: toSec(settings.taskLockdownCooldown ?? 30000),
     maxTaskLockdowns: settings.maxTaskLockdowns ?? 1,
     taskLockdownStation: settings.taskLockdownStation ?? null,
+    camerasEnabled: settings.camerasEnabled ?? false,
+    cameraMonitorStation: settings.cameraMonitorStation ?? null,
+    cameraViewDuration: toSec(settings.cameraViewDuration ?? 30000),
+    cameraViewCooldown: toSec(settings.cameraViewCooldown ?? 30000),
     fileReadingEnabled: settings.fileReadingEnabled ?? false,
     fileReadingTimerDuration: toSec(settings.fileReadingTimerDuration ?? 90000),
     fileReadingPenaltyCooldown: toSec(settings.fileReadingPenaltyCooldown ?? 30000),
@@ -147,6 +153,10 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
       taskLockdownCooldown: toSec(settings.taskLockdownCooldown ?? 30000),
       maxTaskLockdowns: settings.maxTaskLockdowns ?? 1,
       taskLockdownStation: settings.taskLockdownStation ?? null,
+      camerasEnabled: settings.camerasEnabled ?? false,
+      cameraMonitorStation: settings.cameraMonitorStation ?? null,
+      cameraViewDuration: toSec(settings.cameraViewDuration ?? 30000),
+      cameraViewCooldown: toSec(settings.cameraViewCooldown ?? 30000),
       fileReadingEnabled: settings.fileReadingEnabled ?? false,
       fileReadingTimerDuration: toSec(settings.fileReadingTimerDuration ?? 90000),
       fileReadingPenaltyCooldown: toSec(settings.fileReadingPenaltyCooldown ?? 30000),
@@ -221,6 +231,10 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
         taskLockdownCooldown: toMs(local.taskLockdownCooldown),
         maxTaskLockdowns: parseInt(local.maxTaskLockdowns, 10),
         taskLockdownStation: local.taskLockdownStation || null,
+        camerasEnabled: local.camerasEnabled,
+        cameraMonitorStation: local.cameraMonitorStation || null,
+        cameraViewDuration: toMs(local.cameraViewDuration),
+        cameraViewCooldown: toMs(local.cameraViewCooldown),
         fileReadingEnabled: local.fileReadingEnabled,
         fileReadingTimerDuration: toMs(local.fileReadingTimerDuration),
         fileReadingPenaltyCooldown: toMs(local.fileReadingPenaltyCooldown),
@@ -574,6 +588,63 @@ export default function SettingsPanel({ isManager, settings, rooms, gameCode, on
             </div>
           );
         })()}
+
+        {/* ── Cameras ─────────────────────────────────────────────────── */}
+        {settings.stationsEnabled && (activePlayers ?? []).length >= 4 && (
+          <>
+            <div className="settings-section-title" style={{ marginTop: 20 }}>{t('settingsCameras')}</div>
+
+            {(() => {
+              const assignedStations = stationAssignments ?? [];
+              const hasStations = local.stationsEnabled && assignedStations.length >= 2;
+              return (
+                <>
+                  <SettingsRow label={t('camerasEnabledLabel')} defaultLabel={t('defaultPrefix', t('defaultOff'))}>
+                    <Toggle
+                      checked={local.camerasEnabled}
+                      onChange={v => set('camerasEnabled', v)}
+                      disabled={ro || !hasStations}
+                    />
+                  </SettingsRow>
+                  {!ro && !hasStations && (
+                    <p className="settings-sublabel" style={{ marginTop: 4, textAlign: 'right', color: 'var(--color-text-dim)' }}>
+                      {t('camerasRequireStations')}
+                    </p>
+                  )}
+                  {local.camerasEnabled && hasStations && (
+                    <>
+                      <SettingsRow label={t('cameraMonitorStationLabel')} defaultLabel="">
+                        {ro ? (
+                          <span className="settings-value">{local.cameraMonitorStation || t('criticalCountdownStationSelect')}</span>
+                        ) : (
+                          <select
+                            className="settings-input"
+                            value={local.cameraMonitorStation || ''}
+                            onChange={e => set('cameraMonitorStation', e.target.value || null)}
+                            style={{ fontSize: 13 }}
+                          >
+                            <option value="">{t('criticalCountdownStationSelect')}</option>
+                            {assignedStations.map(s => (
+                              <option key={s.roomName} value={s.roomName}>{s.roomName}</option>
+                            ))}
+                          </select>
+                        )}
+                      </SettingsRow>
+                      <SettingsRow label={t('cameraViewDurationLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.cameraViewDuration}s`)}>
+                        <NumInput value={local.cameraViewDuration} onChange={v => set('cameraViewDuration', v)}
+                          min={10} max={120} disabled={ro} />
+                      </SettingsRow>
+                      <SettingsRow label={t('cameraViewCooldownLabel')} defaultLabel={t('defaultPrefix', `${DEFAULTS_SEC.cameraViewCooldown}s`)}>
+                        <NumInput value={local.cameraViewCooldown} onChange={v => set('cameraViewCooldown', v)}
+                          min={5} max={300} disabled={ro} />
+                      </SettingsRow>
+                    </>
+                  )}
+                </>
+              );
+            })()}
+          </>
+        )}
 
         {/* ── Doctor ──────────────────────────────────────────────────── */}
         <div className="settings-section-title" style={{ marginTop: 20 }}>{t('settingsDoctor')}</div>
