@@ -84,6 +84,7 @@ export default function GameScreen() {
   const [showMonitor, setShowMonitor] = useState(false);
   const [showManagerKickMenu, setShowManagerKickMenu] = useState(false);
   const [pendingKickTarget, setPendingKickTarget] = useState(null);
+  const [showCode, setShowCode] = useState(false);
 
   const livingTargets = players.filter(p => p.isAlive && p.id !== myId);
 
@@ -176,6 +177,16 @@ export default function GameScreen() {
           </button>
         )}
       </div>
+
+      {/* My Code — visible whenever the player isn't a locked ghost, regardless of
+          which task sub-view (normal list vs task-lockdown block) is showing */}
+      {!isLocked && state.myCode && (
+        <div className="view-code-bar">
+          <button className="btn btn-ghost btn-small" onClick={() => setShowCode(true)}>
+            {t('viewCodeBtn')}
+          </button>
+        </div>
+      )}
 
       {/* Task area */}
       {isLocked ? (
@@ -372,6 +383,16 @@ export default function GameScreen() {
           <p style={{ color: 'var(--color-text-dim)', marginBottom: '8px' }}>{t('endGameConfirm')}</p>
           <button className="btn btn-red" onClick={endGame}>{t('endGameBtn')}</button>
           <button className="btn btn-ghost" onClick={() => setShowEndConfirm(false)}>{t('cancel')}</button>
+        </Modal>
+      )}
+
+      {/* My Code reveal */}
+      {showCode && (
+        <Modal title={t('yourCodeTitle')} onClose={() => setShowCode(false)}>
+          <div className="code-reveal">
+            <div className="code-reveal-digits">{state.myCode}</div>
+            <p className="code-reveal-hint">{t('yourCodeHint')}</p>
+          </div>
         </Modal>
       )}
 

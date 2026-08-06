@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useGame } from '../context/GameContext';
 import HoldButton from './HoldButton';
-import Modal from './Modal';
 import socket from '../socket';
 import FileReadingGame from '../screens/FileReadingGame';
 import { FILE_READING_QUESTIONS } from '../data/fileReadingQuestions';
@@ -24,7 +23,6 @@ export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, dead
   const { t } = useLanguage();
   const { state } = useGame();
   const [activeTaskId, setActiveTaskId] = useState(null);
-  const [showCode, setShowCode] = useState(false);
 
   const settings = state.settings;
   const isEasyMode = state.isEasyMode;
@@ -125,14 +123,6 @@ export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, dead
 
   return (
     <>
-      {state.myCode && (
-        <div className="view-code-bar">
-          <button className="btn btn-ghost btn-small" onClick={() => setShowCode(true)}>
-            {t('viewCodeBtn')}
-          </button>
-        </div>
-      )}
-
       <div className="task-list">
         {tasks.map(task => {
           const taskLocked = !task.completed && (lockedRoomNames.has(task.room) || globalLockdown);
@@ -192,15 +182,6 @@ export default function TaskList({ tasks, gameCode, isAlive, aliveDuration, dead
           );
         })}
       </div>
-
-      {showCode && (
-        <Modal title={t('yourCodeTitle')} onClose={() => setShowCode(false)}>
-          <div className="code-reveal">
-            <div className="code-reveal-digits">{state.myCode}</div>
-            <p className="code-reveal-hint">{t('yourCodeHint')}</p>
-          </div>
-        </Modal>
-      )}
 
       {frState.tabOpen && frTask && !frTask.completed && (
         <FileReadingGame
