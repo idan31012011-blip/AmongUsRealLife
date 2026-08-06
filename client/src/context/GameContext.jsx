@@ -410,6 +410,10 @@ function reducer(state, action) {
         sabotage: restoredSabotage,
         pendingLockNotification: restoredNotification,
         myCode: action.myCode ?? state.myCode,
+        isDoctor: action.isDoctor ?? state.isDoctor,
+        canUndoSelfKill: action.canUndoSelfKill ?? false,
+        myVote: action.myVote ?? null,
+        totalVotesIn: action.totalVotesIn ?? state.totalVotesIn,
       };
     }
 

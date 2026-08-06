@@ -42,10 +42,18 @@ function registerHandlers(io, socket) {
   socket.on('join_game', ({ code, name } = {}) => {
     const game = getGame(code);
     if (!game) return socket.emit('error', { message: 'Game not found.' });
-    if (game.phase !== 'lobby') return socket.emit('error', { message: 'Game already started.' });
     if (!name || name.trim().length === 0) return socket.emit('error', { message: 'Name required.' });
 
     const trimmedName = name.trim().slice(0, 20);
+
+    if (game.phase !== 'lobby') {
+      // Game already running — this could be a disconnected player rejoining
+      // under their own name (e.g. they lost localStorage or switched devices)
+      // rather than a genuinely new player. If so, treat it as a reconnect and
+      // restore them to exactly where they left off instead of just refusing.
+      if (performRejoin(io, socket, code, trimmedName)) return;
+      return socket.emit('error', { message: 'Game already started.' });
+    }
 
     // Reject duplicate names, but allow taking over a disconnected slot
     let oldDisconnectedId = null;
@@ -111,95 +119,9 @@ function registerHandlers(io, socket) {
     const trimmedName = name?.trim();
     if (!trimmedName) return socket.emit('error', { message: 'Name required.' });
 
-    // Find the disconnected player slot
-    let found = null;
-    for (const [oldId, p] of game.players) {
-      if (p.name.toLowerCase() === trimmedName.toLowerCase() && p.disconnected) {
-        found = { oldId, player: p };
-        break;
-      }
+    if (!performRejoin(io, socket, code, trimmedName)) {
+      socket.emit('error', { message: 'No disconnected player found with that name.' });
     }
-
-    if (!found) return socket.emit('error', { message: 'No disconnected player found with that name.' });
-
-    const { oldId, player } = found;
-
-    // Migrate player to new socket ID
-    game.players.delete(oldId);
-    player.id = socket.id;
-    player.disconnected = false;
-    game.players.set(socket.id, player);
-
-    // Update manager if they were the manager
-    if (game.managerId === oldId) game.managerId = socket.id;
-
-    socket.join(code);
-    socketMeta.set(socket.id, { gameCode: code, name: trimmedName });
-
-    // Cancel any pending lobby cleanup
-    if (game.lobbyCleanupTimeout) {
-      clearTimeout(game.lobbyCleanupTimeout);
-      game.lobbyCleanupTimeout = null;
-    }
-
-    // Restore state based on current phase
-    const base = {
-      code,
-      phase: game.phase,
-      players: buildPublicPlayerList(game.players),
-      rooms: game.rooms,
-      settings: game.settings,
-      isManager: socket.id === game.managerId,
-      managerId: game.managerId,
-      taskProgressPercent: calculateTaskProgress(game.tasks),
-    };
-
-    if (game.phase === 'lobby') {
-      socket.emit('game_joined', { ...base, stationAssignments: buildStationList(game) });
-      // Tell other lobby members this player is back (with new socket ID)
-      socket.to(code).emit('player_joined', {
-        player: { id: socket.id, name: player.name, isAlive: true, bodyFound: false, votedOut: false, disconnected: false },
-      });
-    } else if (player.role === 'station') {
-      socket.emit('station_device_ready', { roomName: game.stationRooms.get(socket.id) });
-      // Resend critical countdown code if it's still active for this station
-      if (game.sabotage.criticalCountdownActive && game.sabotage.criticalCountdownCode) {
-        const stationId = getCriticalCountdownStationId(game);
-        if (stationId === socket.id) {
-          socket.emit('critical_countdown_code', {
-            criticalCode: game.sabotage.criticalCountdownCode,
-            expiresAt: game.sabotage.criticalCountdownExpiresAt,
-          });
-        }
-      }
-    } else {
-      const sabotageForPlayer = player.role === 'imposter'
-        ? buildSabotageStatus(game)
-        : {
-            lockedRooms: buildLockedRoomsList(game),
-            globalLockdown: {
-              active: game.sabotage.globalLockdownActive,
-              expiresAt: game.sabotage.globalLockdownExpiresAt,
-            },
-            criticalCountdown: {
-              active: game.sabotage.criticalCountdownActive,
-              expiresAt: game.sabotage.criticalCountdownExpiresAt,
-            },
-          };
-
-      socket.emit('game_state_restored', {
-        ...base,
-        role: player.role,
-        myTasks: buildPlayerTasks(player, game.tasks),
-        isAlive: player.isAlive,
-        killCooldownUntil: player.role === 'imposter' ? game.imposterKillCooldownUntil : 0,
-        hasCalledEmergency: player.hasCalledEmergency,
-        myCode: game.playerCodes.get(socket.id),
-        sabotage: sabotageForPlayer,
-      });
-    }
-
-    io.to(code).emit('player_reconnected', { playerId: socket.id, name: trimmedName });
   });
 
   socket.on('kick_player', ({ code, targetId } = {}) => {
@@ -1325,9 +1247,8 @@ function registerHandlers(io, socket) {
       }
     }
 
-    // Give players a longer grace period to reconnect (e.g. walked into a dead
-    // zone, or their phone's radio dropped while screen-locked) before treating
-    // them as gone for good.
+    // A disconnected player has 60 seconds to reconnect (rejoin_game, same
+    // name) before they're treated as gone for good.
     setTimeout(() => {
       const g = getGame(meta.gameCode);
       if (!g) return;
@@ -1345,7 +1266,7 @@ function registerHandlers(io, socket) {
           if (livingVoters.length > 0 && g.votes.size >= livingVoters.length) resolveVoting(io, g);
         }
       }
-    }, 90000);
+    }, 60000);
   });
 }
 
@@ -1485,6 +1406,162 @@ function endGlobalLockdown(io, game) {
 }
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
+
+// Shared by both the automatic reconnect flow (rejoin_game, fired from stored
+// localStorage credentials) and a manual "Join Game" submission mid-round —
+// both need to find a disconnected player with this name, migrate them onto
+// the new socket id, and hand back exactly the state they left with (role,
+// tasks, vote, sabotage view, etc). Returns false if no matching disconnected
+// player exists, so the caller can fall back to its own error message.
+function performRejoin(io, socket, code, trimmedName) {
+  const game = getGame(code);
+  if (!game) return false;
+
+  // Find the disconnected player slot
+  let found = null;
+  for (const [oldId, p] of game.players) {
+    if (p.name.toLowerCase() === trimmedName.toLowerCase() && p.disconnected) {
+      found = { oldId, player: p };
+      break;
+    }
+  }
+  if (!found) return false;
+
+  const { oldId, player } = found;
+
+  // Migrate player to new socket ID
+  game.players.delete(oldId);
+  player.id = socket.id;
+  player.disconnected = false;
+  game.players.set(socket.id, player);
+
+  // Update manager if they were the manager
+  if (game.managerId === oldId) game.managerId = socket.id;
+
+  // Every other place that referenced this player by their old socket id
+  // (assigned tasks, their private code, votes already cast, etc.) needs to
+  // follow them to the new id — otherwise things like "complete task" silently
+  // stop working after a reconnect because task.assignedTo no longer matches
+  // the player's current socket id.
+  migratePlayerId(game, oldId, socket.id);
+
+  socket.join(code);
+  socketMeta.set(socket.id, { gameCode: code, name: trimmedName });
+
+  // Cancel any pending lobby cleanup
+  if (game.lobbyCleanupTimeout) {
+    clearTimeout(game.lobbyCleanupTimeout);
+    game.lobbyCleanupTimeout = null;
+  }
+
+  // Restore state based on current phase
+  const base = {
+    code,
+    phase: game.phase,
+    players: buildPublicPlayerList(game.players),
+    rooms: game.rooms,
+    settings: game.settings,
+    isManager: socket.id === game.managerId,
+    managerId: game.managerId,
+    taskProgressPercent: calculateTaskProgress(game.tasks),
+  };
+
+  if (game.phase === 'lobby') {
+    socket.emit('game_joined', { ...base, stationAssignments: buildStationList(game) });
+    // Tell other lobby members this player is back (with new socket ID)
+    socket.to(code).emit('player_joined', {
+      player: { id: socket.id, name: player.name, isAlive: true, bodyFound: false, votedOut: false, disconnected: false },
+    });
+  } else if (player.role === 'station') {
+    socket.emit('station_device_ready', { roomName: game.stationRooms.get(socket.id) });
+    // Resend critical countdown code if it's still active for this station
+    if (game.sabotage.criticalCountdownActive && game.sabotage.criticalCountdownCode) {
+      const stationId = getCriticalCountdownStationId(game);
+      if (stationId === socket.id) {
+        socket.emit('critical_countdown_code', {
+          criticalCode: game.sabotage.criticalCountdownCode,
+          expiresAt: game.sabotage.criticalCountdownExpiresAt,
+        });
+      }
+    }
+  } else {
+    const sabotageForPlayer = player.role === 'imposter'
+      ? buildSabotageStatus(game)
+      : {
+          lockedRooms: buildLockedRoomsList(game),
+          globalLockdown: {
+            active: game.sabotage.globalLockdownActive,
+            expiresAt: game.sabotage.globalLockdownExpiresAt,
+          },
+          criticalCountdown: {
+            active: game.sabotage.criticalCountdownActive,
+            expiresAt: game.sabotage.criticalCountdownExpiresAt,
+          },
+        };
+
+    socket.emit('game_state_restored', {
+      ...base,
+      role: player.role,
+      myTasks: buildPlayerTasks(player, game.tasks),
+      isAlive: player.isAlive,
+      killCooldownUntil: player.role === 'imposter' ? game.imposterKillCooldownUntil : 0,
+      hasCalledEmergency: player.hasCalledEmergency,
+      myCode: game.playerCodes.get(socket.id),
+      sabotage: sabotageForPlayer,
+      isDoctor: game.doctorId === socket.id,
+      canUndoSelfKill: !!player.selfReported,
+      myVote: game.phase === 'voting' ? (game.votes.get(socket.id) ?? null) : null,
+      totalVotesIn: game.phase === 'voting' ? game.votes.size : 0,
+    });
+  }
+
+  io.to(code).emit('player_reconnected', { playerId: socket.id, name: trimmedName });
+  return true;
+}
+
+// Re-point every place in game state that references a player by socket id
+// (tasks, private codes, votes, doctor assignment, ...) from their old id to
+// their new one after a reconnect. Without this, per-player lookups that
+// compare against the *current* socket.id (task_hold_start, complete_task,
+// station code validation, cast_vote's "already voted" check, ...) silently
+// stop matching, and the player looks "stuck" even though they're back online.
+function migratePlayerId(game, oldId, newId) {
+  for (const task of game.tasks.values()) {
+    if (task.assignedTo === oldId) task.assignedTo = newId;
+  }
+
+  if (game.playerCodes.has(oldId)) {
+    game.playerCodes.set(newId, game.playerCodes.get(oldId));
+    game.playerCodes.delete(oldId);
+  }
+
+  if (game.doctorId === oldId) game.doctorId = newId;
+
+  if (game.easyModePlayers.has(oldId)) {
+    game.easyModePlayers.delete(oldId);
+    game.easyModePlayers.add(newId);
+  }
+
+  if (game.votes.has(oldId)) {
+    game.votes.set(newId, game.votes.get(oldId));
+    game.votes.delete(oldId);
+  }
+
+  if (game.playerMiniGameHistory.has(oldId)) {
+    game.playerMiniGameHistory.set(newId, game.playerMiniGameHistory.get(oldId));
+    game.playerMiniGameHistory.delete(oldId);
+  }
+
+  if (game.pendingMiniGames.has(oldId)) {
+    game.pendingMiniGames.set(newId, game.pendingMiniGames.get(oldId));
+    game.pendingMiniGames.delete(oldId);
+  }
+
+  if (game.revealedPlayers.has(oldId)) {
+    game.revealedPlayers.delete(oldId);
+    game.revealedPlayers.add(newId);
+  }
+}
 
 function canDoTask(player, game) {
   if (player.isAlive) return true;
